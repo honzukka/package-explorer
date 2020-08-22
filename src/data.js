@@ -1,3 +1,36 @@
+import $ from 'jquery';
+
+import mockFile from './status.real';
+
+// TODO: do not show alert upon error here. App takes care of UI stuff
+
+// TODO: add parsing and return a Map of packages
+async function getMockData() {
+	try {
+		const result = await $.ajax({ url: mockFile });
+		// return result.split("\n");
+		return new Map();
+	}
+	catch (error) {
+		alert(`${error.status}: ${error.statusText}`);
+		return new Map();
+	}
+}
+
+// TODO: add parsing and return a Map of packages
+async function getFileData(file) {
+	return new Promise((resolve) => {
+		const reader = new FileReader();
+		// reader.onload = (event) => resolve(event.target.result.split('\n'));
+		reader.onload = () => resolve(new Map());
+		reader.onerror = () => {
+			alert("Error reading file data.");
+			resolve(new Map());
+		};
+		reader.readAsText(file);
+	});
+}
+
 class Data {
 	constructor() {
 		this.packages = new Map();
@@ -58,3 +91,4 @@ class Data {
 }
 
 export default Data;
+export { getMockData, getFileData };

@@ -2,29 +2,98 @@ import React from 'react';
 import Container from 'react-bootstrap/Container';
 import Accordion from 'react-bootstrap/Accordion';
 import Card from 'react-bootstrap/Card';
+import CardDeck from 'react-bootstrap/CardDeck';
 import Button from 'react-bootstrap/Button';
+import Form from 'react-bootstrap/Form';
 
 import Data from './data';
+import { getMockData, getFileData } from './data';
 
 // TODO: the Accordion element definition is scattered across multiple functions...
+//    - same thing with the card deck...
 // TODO: would loading the body data only on click make things faster? (callback?)
 //    - https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists
+// TODO: add comments :-)
 
 class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       packages: new Data().packages,
+      // packages: new Map()
     };
+
+    this.setMockData = this.setMockData.bind(this);
+    this.setFileData = this.setFileData.bind(this);
+  }
+
+  setMockData() {
+    getMockData().then((data) => this.setState({packages: data}));
+  }
+
+  setFileData(file) {
+    getFileData(file).then((data) => this.setState({packages: data}));
   }
 
   render() {
     return (
       <Container fluid className="p-3">
+        <PageHeading />
+
+        <CardDeck className="mb-5">
+          <FileInput callback={this.setFileData} />
+          <MockInput callback={this.setMockData} />
+        </CardDeck>
+
         <Accordion>
           <List packages={this.state.packages}/>
         </Accordion>
       </Container>
+    );
+  }
+}
+
+function PageHeading(props) {
+  return <h1 className="mb-5">Welcome to Package Explorer!</h1>;
+}
+
+function MockInput(props) {
+  return (
+    <Card>
+      <Card.Body>
+        <Button onClick={props.callback}>Show mock input</Button>
+      </Card.Body>
+    </Card>
+  );
+}
+
+// TODO: could this be made into a function?
+class FileInput extends React.Component {
+  constructor(props) {
+    super(props);
+    this.callback = props.callback;
+    this.handleSubmit = this.handleSubmit.bind(this);
+    this.fileInput = React.createRef();
+  }
+
+  handleSubmit(event) {
+    event.preventDefault();
+    const file = this.fileInput.current.files[0];
+    if (file) {
+      this.callback(file);
+    }
+  }
+
+  render() {
+    return (
+      <Card>
+        <Card.Body>
+          <Form onSubmit={this.handleSubmit}>
+            <Form.File ref={this.fileInput} id="fileForm" label="Upload your file!" />
+            <Button type="submit">Submit</Button>
+          </Form>
+        </Card.Body>
+      </Card>
     );
   }
 }
@@ -61,7 +130,7 @@ function Item(props) {
 }
 
 function PackageTitle(props) {
-  return <h1 className="mb-3">{props.name}</h1>;
+  return <h2 className="mb-3">{props.name}</h2>;
 }
 
 function PackageDescription(props) {
