@@ -1,15 +1,14 @@
 import $ from 'jquery';
 
 import mockFile from './status.real';
+import parseFile from './parser'
 
-// TODO: do not show alert upon error here. App takes care of UI stuff
+// TODO: do not show alert upon error here. App.js takes care of UI stuff
 
-// TODO: add parsing and return a Map of packages
 async function getMockData() {
 	try {
 		const result = await $.ajax({ url: mockFile });
-		// return result.split("\n");
-		return new Map();
+		return processFile(result);
 	}
 	catch (error) {
 		alert(`${error.status}: ${error.statusText}`);
@@ -17,12 +16,10 @@ async function getMockData() {
 	}
 }
 
-// TODO: add parsing and return a Map of packages
 async function getFileData(file) {
 	return new Promise((resolve) => {
 		const reader = new FileReader();
-		// reader.onload = (event) => resolve(event.target.result.split('\n'));
-		reader.onload = () => resolve(new Map());
+		reader.onload = (event) => resolve(processFile(event.target.result));
 		reader.onerror = () => {
 			alert("Error reading file data.");
 			resolve(new Map());
@@ -30,6 +27,19 @@ async function getFileData(file) {
 		reader.readAsText(file);
 	});
 }
+
+function processFile(fileContent) {
+	// const packages = parseFile(fileContent);
+	// const packagesWithRevDeps = computeReverseDependencies(packages);
+	// return packagesWithRevDeps;
+	return new Map();
+}
+
+function computeReverseDependencies(packages) {
+
+}
+
+
 
 class Data {
 	constructor() {
@@ -91,4 +101,7 @@ class Data {
 }
 
 export default Data;
-export { getMockData, getFileData };
+export {
+	getMockData,
+	getFileData
+};
