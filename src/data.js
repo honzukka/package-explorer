@@ -4,6 +4,7 @@ import mockFile from './status.real';
 import parseFile from './parser'
 
 // TODO: do not show alert upon error here. App.js takes care of UI stuff
+// TODO: polish error handling when the input file is wrong (check production mode)
 
 async function getMockData() {
 	try {
@@ -29,14 +30,30 @@ async function getFileData(file) {
 }
 
 function processFile(fileContent) {
-	// const packages = parseFile(fileContent);
-	// const packagesWithRevDeps = computeReverseDependencies(packages);
-	// return packagesWithRevDeps;
-	return new Map();
+	const packages = parseFile(fileContent);
+	const packagesWithRevDeps = computeReverseDependencies(packages);
+	const packagesWithRevDepsAndDepObjs = generateDependencyObjects(packagesWithRevDeps);
+	return packagesWithRevDepsAndDepObjs;
 }
 
+// TODO: actually compute these :-)
 function computeReverseDependencies(packages) {
+	for (let [packageName, packageData] of packages) {
+		packageData.reverseDependencies = [];
+		packages.set(packageName, packageData);
+	}
+	return packages;
+}
 
+function generateDependencyObjects(packages) {
+	for (let [packageName, packageData] of packages) {
+		const depObjs = packageData.dependencies.map((depAlts) => depAlts.map(
+			(dep) => ({ name: dep, listed: packages.has(dep) })
+		));
+		packageData.dependencies = depObjs;
+		packages.set(packageName, packageData);
+	}
+	return packages;
 }
 
 
@@ -50,8 +67,8 @@ class Data {
 				description: "This one is the first and always will be.",
 				dependencies: [],
 				reverseDependencies: [
-					{name: "package2", listed: true},
-					{name: "package3", listed: true},
+					[{name: "package2", listed: true}],
+					[{name: "package3", listed: true}],
 				]
 			}
 		)
@@ -60,11 +77,13 @@ class Data {
 			{
 				description: "The underdog!",
 				dependencies: [
-					{name: "package1", listed: true},
-					{name: "package3", listed: true},
-					{name: "package5", listed: false},
-					{name: "package6", listed: false},
-					{name: "package4", listed: true},
+					[{name: "package1", listed: true}],
+					[
+						{name: "package3", listed: true},
+						{name: "package5", listed: false},
+						{name: "package6", listed: false}
+					],
+					[{name: "package4", listed: true}],
 				],
 				reverseDependencies: []
 			}
@@ -80,10 +99,10 @@ class Data {
 					"Nullam sit amet luctus eros, eu consectetur metus. Quisque eu posuere velit, lacinia mollis justo. Suspendisse potenti. Donec erat ante, blandit sit amet placerat sit amet, facilisis elementum tortor. Praesent in massa at elit commodo egestas non vitae nunc. Nunc sapien purus, rutrum vitae egestas nec, porttitor id elit. Pellentesque sollicitudin, nisl in hendrerit tincidunt, lacus dolor fringilla tellus, nec ornare mi dui id ex. "
 				),
 				dependencies: [
-					{name: "package1", listed: true}
+					[{name: "package1", listed: true}]
 				],
 				reverseDependencies: [
-					{name: "package2", listed: true}
+					[{name: "package2", listed: true}]
 				]
 			}
 		)
@@ -93,7 +112,7 @@ class Data {
 				description: "I'm just here so that the underdog has something to depend on.",
 				dependencies: [],
 				reverseDependencies: [
-					{name: "package2", listed: true}
+					[{name: "package2", listed: true}]
 				]
 			}
 		)

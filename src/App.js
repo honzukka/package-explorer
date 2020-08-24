@@ -4,16 +4,19 @@ import Accordion from 'react-bootstrap/Accordion';
 import Card from 'react-bootstrap/Card';
 import CardDeck from 'react-bootstrap/CardDeck';
 import Button from 'react-bootstrap/Button';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Form from 'react-bootstrap/Form';
 
 import Data from './data';
 import { getMockData, getFileData } from './data';
+import { useAccordionToggle } from 'react-bootstrap';
 
 // TODO: the Accordion element definition is scattered across multiple functions...
 //    - same thing with the card deck...
 // TODO: would loading the body data only on click make things faster? (callback?)
 //    - https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists
 // TODO: add comments :-)
+// TODO: speed it up a bit and maybe include some loading animation while the user is waiting
 
 class App extends React.Component {
   constructor(props) {
@@ -122,7 +125,7 @@ function Item(props) {
           <PackageTitle name={props.name} />
           <PackageDescription description={props.data.description} />
           <PackageDependencies deps={props.data.dependencies} />
-          <PackageReverseDependencies deps={props.data.reverseDependencies} />
+          {/* <PackageReverseDependencies deps={props.data.reverseDependencies} /> */}
         </Card.Body>
       </Accordion.Collapse>
     </Card>
@@ -134,14 +137,18 @@ function PackageTitle(props) {
 }
 
 function PackageDescription(props) {
-  return <p className="mb-3">{props.description}</p>;
+  return (
+    <p className="mb-3" style={{ whiteSpace: `pre-wrap` }}>
+      {props.description.split("\n").map((line, i) => <span key={i}>{line}<br/></span>)}
+    </p>
+  );
 }
 
 function PackageDependencies(props) {
   return (
     <>
       <p><b>Dependencies: </b></p>
-      <p><DependencyList deps={props.deps}></DependencyList></p>
+      <DependencyList deps={props.deps}></DependencyList>
     </>
   );
 }
@@ -150,13 +157,17 @@ function PackageReverseDependencies(props) {
   return (
     <>
       <p><b>Reverse dependencies: </b></p>
-      <p><DependencyList deps={props.deps}></DependencyList></p>
+      <DependencyList deps={props.deps}></DependencyList>
     </>
   );
 }
 
 function DependencyList(props) {
-  return props.deps.map(dep => <PackageLinkDependency key={dep.name} dep={dep}/>);
+  return props.deps.map((depAlts, i) => (
+    <ButtonGroup key={i} className="mx-2">
+      <PackageLinkDependencyAlts depAlts={depAlts}/>
+    </ButtonGroup>
+  ));
 }
 
 function PackageLinkHeader(props) {
@@ -167,6 +178,11 @@ function PackageLinkHeader(props) {
   );
 }
 
+function PackageLinkDependencyAlts(props) {
+  return props.depAlts.map(dep => <PackageLinkDependency key={dep.name} dep={dep} />)
+}
+
+// TODO: scroll to the package when a dependency link is clicked!
 function PackageLinkDependency(props) {
   const buttonClass = "mr-1 mt-1";
   if (props.dep.listed) {
@@ -177,7 +193,7 @@ function PackageLinkDependency(props) {
     );
   } else {
     return (
-      <Button key={props.dep.name} variant="light" className={buttonClass}>
+      <Button variant="light" className={buttonClass}>
         {props.dep.name}
       </Button>
     )
