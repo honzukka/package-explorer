@@ -97,9 +97,12 @@ function convertFieldsToPackage(fields) {
     }
 
     if (fieldName === "depends") {
+      // TODO: REFACTOR THIS YOU MONSTER!!!
       const deps = fieldValue.split(',');
-      const depAlts = deps.map((dep) => dep.split("|"));
-      packageObj[fieldName] = depAlts;
+      const depAlts = deps.map((dep) => dep.split("|").sort());
+      const depAltsUniq = depAlts.map((alts) => [...new Set(alts)]);
+      const depUniqAltsUniq = [...new Set(depAltsUniq.map((alts) => alts.reduce((acc, alt) => acc + "|" + alt)))].map((altsStr) => altsStr.split("|"));
+      packageObj[fieldName] = depUniqAltsUniq;
     } else {
       packageObj[fieldName] = fieldValue;
     }
