@@ -6,17 +6,21 @@ import CardDeck from 'react-bootstrap/CardDeck';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Form from 'react-bootstrap/Form';
+import Modal from 'react-bootstrap/Modal';
 
 import Data from './data';
 import { getMockData, getFileData } from './data';
-import { useAccordionToggle } from 'react-bootstrap';
+import { useAccordionToggle} from 'react-bootstrap';
 
 // TODO: the Accordion element definition is scattered across multiple functions...
 //    - same thing with the card deck...
 // TODO: would loading the body data only on click make things faster? (callback?)
 //    - https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists
 // TODO: add comments :-)
-// TODO: speed it up a bit and maybe include some loading animation while the user is waiting
+// TODO: include some loading animation while the user is waiting
+// TODO: highlight package button whose modal is open (or was just closed)
+// TODO: take a proper look at hooks :-)
+// TODO: refactor properly
 
 class App extends React.Component {
   constructor(props) {
@@ -26,8 +30,12 @@ class App extends React.Component {
       // packages: new Map()
     };
 
+    this.packageItemRefs = new Map();
+
     this.setMockData = this.setMockData.bind(this);
     this.setFileData = this.setFileData.bind(this);
+    this.setPackageItemRefs = this.setPackageItemRefs.bind(this);
+    this.scrollToPackageItem = this.scrollToPackageItem.bind(this);
   }
 
   setMockData() {
@@ -36,6 +44,14 @@ class App extends React.Component {
 
   setFileData(file) {
     getFileData(file).then((data) => this.setState({packages: data}));
+  }
+
+  setPackageItemRefs(packageName, packageItemRef) {
+    this.packageItemRefs.set(packageName, packageItemRef);
+  }
+
+  scrollToPackageItem(packageName) {
+    this.packageItemRefs.get(packageName).current.click();
   }
 
   render() {
@@ -48,9 +64,11 @@ class App extends React.Component {
           <MockInput callback={this.setMockData} />
         </CardDeck>
 
-        <Accordion>
-          <List packages={this.state.packages}/>
-        </Accordion>
+        <Card>
+          <Card.Body>
+              <List packages={this.state.packages} scrollCallback={this.scrollToPackageItem} refCallback={this.setPackageItemRefs} />
+          </Card.Body>
+        </Card>
       </Container>
     );
   }
@@ -108,6 +126,8 @@ function List(props) {
       <Item key={packageName}
         name={packageName}
         data={packageData}
+        refCallback={props.refCallback}
+        scrollCallback={props.scrollCallback}
       />
     );
   }
@@ -115,20 +135,34 @@ function List(props) {
 }
 
 function Item(props) {
+  let itemRef = React.createRef();
+  props.refCallback(props.name, itemRef);
+
+  const [show, setShow] = React.useState(false);
+  const handleClose = () => setShow(false);
+  const handleShow = () => {
+    setShow(true);
+  };
+  const handleShown = () => itemRef.current.scrollIntoView();
+
   return (
-    <Card>
-      <Card.Header>
-        <PackageLinkHeader name={props.name} />
-      </Card.Header>
-      <Accordion.Collapse eventKey={props.name}>
-        <Card.Body>
+    <>
+      <Button ref={itemRef} className="m-2" onClick={handleShow}>{props.name}</Button>
+
+      <Modal show={show} onHide={handleClose} onEntered={handleShown}>
+        <Modal.Header closeButton>
           <PackageTitle name={props.name} />
+        </Modal.Header>
+        <Modal.Body>
           <PackageDescription description={props.data.description} />
-          <PackageDependencies deps={props.data.dependencies} />
-          {/* <PackageReverseDependencies deps={props.data.reverseDependencies} /> */}
-        </Card.Body>
-      </Accordion.Collapse>
-    </Card>
+          <PackageDependencies
+            deps={props.data.dependencies}
+            scrollCallback={props.scrollCallback}
+            closeCallback={handleClose}
+          />
+        </Modal.Body>
+      </Modal>
+    </>
   );
 }
 
@@ -148,7 +182,7 @@ function PackageDependencies(props) {
   return (
     <>
       <p><b>Dependencies: </b></p>
-      <DependencyList deps={props.deps}></DependencyList>
+      <DependencyList deps={props.deps} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}></DependencyList>
     </>
   );
 }
@@ -165,7 +199,7 @@ function PackageReverseDependencies(props) {
 function DependencyList(props) {
   return props.deps.map((depAlts, i) => (
     <ButtonGroup key={i} className="mx-2">
-      <PackageLinkDependencyAlts depAlts={depAlts}/>
+      <PackageLinkDependencyAlts depAlts={depAlts} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}/>
     </ButtonGroup>
   ));
 }
@@ -179,17 +213,20 @@ function PackageLinkHeader(props) {
 }
 
 function PackageLinkDependencyAlts(props) {
-  return props.depAlts.map(dep => <PackageLinkDependency key={dep.name} dep={dep} />)
+  return props.depAlts.map(dep => <PackageLinkDependency key={dep.name} dep={dep} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback} />)
 }
 
-// TODO: scroll to the package when a dependency link is clicked!
 function PackageLinkDependency(props) {
   const buttonClass = "mr-1 mt-1";
+  const onClickDecorated = () => {
+    props.scrollCallback(props.dep.name);
+    props.closeCallback();
+  };
   if (props.dep.listed) {
     return (
-      <Accordion.Toggle as={Button} variant="secondary" className={buttonClass} eventKey={props.dep.name}>
+      <Button variant="secondary" className={buttonClass} onClick={onClickDecorated}>
         {props.dep.name}
-      </Accordion.Toggle>
+      </Button>
     );
   } else {
     return (
