@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Container from 'react-bootstrap/Container';
 import Card from 'react-bootstrap/Card';
 import CardDeck from 'react-bootstrap/CardDeck';
@@ -7,162 +7,204 @@ import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
 
-import Data from './data';
+import './App.css';
 import { getMockData, getFileData } from './data';
 
-// TODO: the Accordion element definition is scattered across multiple functions...
-//    - same thing with the card deck...
-// TODO: would loading the body data only on click make things faster? (callback?)
-//    - https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists
-// TODO: add comments :-)
-// TODO: include some loading animation while the user is waiting
-// TODO: highlight package button whose modal is open (or was just closed)
-// TODO: take a proper look at hooks :-)
+// TODO: add comments
 // TODO: refactor properly
 
 class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      packages: new Data().packages,
-      // packages: new Map()
+      packages: new Map()
     };
 
-    this.packageItemRefs = new Map();
+    this.packageItems = new Map();
 
     this.setMockData = this.setMockData.bind(this);
     this.setFileData = this.setFileData.bind(this);
-    this.setPackageItemRefs = this.setPackageItemRefs.bind(this);
-    this.scrollToPackageItem = this.scrollToPackageItem.bind(this);
+    this.registerItem = this.registerItem.bind(this);
+    this.switchAttention = this.switchAttention.bind(this);
   }
 
-  setMockData() {
-    getMockData().then((data) => this.setState({packages: data}));
+  async setMockData() {
+    let data = await getMockData();
+    this.setData(data);
   }
 
-  setFileData(file) {
-    getFileData(file).then((data) => this.setState({packages: data}));
+  async setFileData(file) {
+    let data = await getFileData(file);
+    this.setData(data);
   }
 
-  setPackageItemRefs(packageName, packageItemRef) {
-    this.packageItemRefs.set(packageName, packageItemRef);
+  setData(data) {
+    for (let [packageName, packageData] of data) {
+      packageData.dependencies = packageData.dependencies.map((depGroup) => depGroup.map((dep) => ({
+        name: dep.name,
+        listed: dep.listed,
+        callback: () => this.switchAttention.bind(this)(packageName, dep.name)
+      })));
+      packageData.reverseDependencies = packageData.reverseDependencies.map((depGroup) => depGroup.map((dep) => ({
+        name: dep.name,
+        listed: dep.listed,
+        callback: () => this.switchAttention.bind(this)(packageName, dep.name)
+      })));
+      data.set(packageName, packageData);
+    }
+    this.setState({ packages: data });
   }
 
-  scrollToPackageItem(packageName) {
-    this.packageItemRefs.get(packageName).current.click();
+  registerItem(packageName, itemRef, showCallback, closeCallback) {
+    this.packageItems.set(packageName, {
+      itemRef: itemRef,
+      show: showCallback,
+      close: closeCallback
+    });
+  }
+
+  switchAttention(prevPackageName, nextPackageName) {
+    if (prevPackageName) {
+      this.packageItems.get(prevPackageName).close();
+    }
+    this.packageItems.get(nextPackageName).show();
+    this.packageItems.get(nextPackageName).itemRef.current.focus();
   }
 
   render() {
     return (
       <Container fluid className="p-3">
-        <PageHeading />
+        <PageHeading>Package Explorer</PageHeading>
 
-        <CardDeck className="mb-5">
-          <FileInput callback={this.setFileData} />
-          <MockInput callback={this.setMockData} />
-        </CardDeck>
+        <InputSection subsections={[
+            {
+              header: {__html: "If you want to upload your own <code>/var/lib/dpkg/status</code>:"},
+              body: <FileInputForm callback={this.setFileData} />
+            },
+            {
+              header: {__html: "If you don't have <code>/var/lib/dpkg/status</code> handy:"},
+              body: <LoadingButton callback={this.setMockData}>Submit mock file</LoadingButton>
+            }
+          ]}
+        />
 
-        <Card>
-          <Card.Body>
-              <List packages={this.state.packages} scrollCallback={this.scrollToPackageItem} refCallback={this.setPackageItemRefs} />
-          </Card.Body>
-        </Card>
+        <PackageList header={{__html: "Here is what the <code>/var/lib/dpkg/status</code> has revealed:"}}>
+          {
+            Array.from(this.state.packages).map(([packageName, packageData]) => 
+              <Item key={packageName}
+                name={packageName}
+                data={packageData}
+                registerCallback={this.registerItem}
+              />
+            )
+          }
+        </PackageList>
       </Container>
     );
   }
 }
 
 function PageHeading(props) {
-  return <h1 className="mb-5">Welcome to Package Explorer!</h1>;
+  return <h1 className="display-3 mb-5">{props.children}</h1>;
 }
 
-function MockInput(props) {
+function InputSection(props) {
+  return (
+    <CardDeck className="mb-5">
+      {
+        props.subsections.map((subsection, i) =>
+          <Card key={i}>
+            <Card.Header>
+              <div className="lead" dangerouslySetInnerHTML={subsection.header}></div>
+            </Card.Header>
+            <Card.Body>
+              {subsection.body}
+            </Card.Body>
+          </Card>
+        )
+      }
+    </CardDeck>
+  );
+}
+
+function FileInputForm(props) {
+  const fileInputRef = React.createRef();
+  const handleSubmit = async () => {
+    const file = fileInputRef.current.files[0];
+    if (file) {
+      await props.callback(file);
+    }
+  };
+
+  return (
+    <Form>
+      <Form.File ref={fileInputRef} id="fileForm" />
+      <LoadingButton callback={handleSubmit}>Submit</LoadingButton>
+    </Form>
+  );
+}
+
+function LoadingButton(props) {
+  const [isLoading, setLoading] = React.useState(false);
+  const handleClick = () => setLoading(true);
+
+  useEffect(() => {
+    if (isLoading) {
+      props.callback().then(() => setLoading(false));
+    }
+  }, [isLoading, props]);
+
+  return (
+    <Button
+      className="mt-2"
+      variant="dark"
+      disabled={isLoading}
+      onClick={!isLoading ? handleClick : null}
+    >
+      {isLoading ? "Loading..." : props.children}
+    </Button>
+  );
+}
+
+function PackageList(props) {
+  if (props.children.length === 0) {
+    return null;
+  }
+
   return (
     <Card>
+      <Card.Header>
+        <div className="lead" dangerouslySetInnerHTML={props.header}></div>
+      </Card.Header>
       <Card.Body>
-        <Button onClick={props.callback}>Show mock input</Button>
+        {props.children}
       </Card.Body>
     </Card>
   );
 }
 
-// TODO: could this be made into a function?
-class FileInput extends React.Component {
-  constructor(props) {
-    super(props);
-    this.callback = props.callback;
-    this.handleSubmit = this.handleSubmit.bind(this);
-    this.fileInput = React.createRef();
-  }
-
-  handleSubmit(event) {
-    event.preventDefault();
-    const file = this.fileInput.current.files[0];
-    if (file) {
-      this.callback(file);
-    }
-  }
-
-  render() {
-    return (
-      <Card>
-        <Card.Body>
-          <Form onSubmit={this.handleSubmit}>
-            <Form.File ref={this.fileInput} id="fileForm" label="Upload your file!" />
-            <Button type="submit">Submit</Button>
-          </Form>
-        </Card.Body>
-      </Card>
-    );
-  }
-}
-
-function List(props) {
-  let items = [];
-  for (let [packageName, packageData] of props.packages) {
-    items.push(
-      <Item key={packageName}
-        name={packageName}
-        data={packageData}
-        refCallback={props.refCallback}
-        scrollCallback={props.scrollCallback}
-      />
-    );
-  }
-  return items;
-}
-
 function Item(props) {
   let itemRef = React.createRef();
-  props.refCallback(props.name, itemRef);
 
   const [show, setShow] = React.useState(false);
   const handleClose = () => setShow(false);
-  const handleShow = () => {
-    setShow(true);
-  };
+  const handleShow = () => setShow(true);
   const handleShown = () => itemRef.current.scrollIntoView();
+
+  props.registerCallback(props.name, itemRef, handleShow, handleClose);
 
   return (
     <>
-      <Button ref={itemRef} className="m-2" onClick={handleShow}>{props.name}</Button>
+      <Button ref={itemRef} className="m-2" variant="outline-secondary" onClick={handleShow}>{props.name}</Button>
 
-      <Modal show={show} onHide={handleClose} onEntered={handleShown}>
+      <Modal show={show} onHide={handleClose} onEntered={handleShown} size='lg'>
         <Modal.Header closeButton>
           <PackageTitle name={props.name} />
         </Modal.Header>
         <Modal.Body>
           <PackageDescription description={props.data.description} />
-          <PackageDependencies
-            deps={props.data.dependencies}
-            scrollCallback={props.scrollCallback}
-            closeCallback={handleClose}
-          />
-          <PackageReverseDependencies
-            deps={props.data.reverseDependencies}
-            scrollCallback={props.scrollCallback}
-            closeCallback={handleClose}
-          />
+          <Dependencies text="Dependencies:" dependencies={props.data.dependencies} />
+          <Dependencies text="Reverse dependencies:" dependencies={props.data.reverseDependencies} />
         </Modal.Body>
       </Modal>
     </>
@@ -181,55 +223,48 @@ function PackageDescription(props) {
   );
 }
 
-function PackageDependencies(props) {
+function Dependencies(props) {
   return (
     <>
-      <p><b>Dependencies: </b></p>
-      <DependencyList deps={props.deps} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}></DependencyList>
+      <p className="mt-3"><b>{props.text}</b></p>
+      {
+        props.dependencies.map((depGroup, i) => 
+          <DependencyGroup key={i}>
+            {
+              depGroup.map((dep) => dep.listed ?
+                <InstalledButton key={dep.name} handleClick={dep.callback}>{dep.name}</InstalledButton> :
+                <MissingButton key={dep.name}>{dep.name}</MissingButton>
+              )
+            }
+          </DependencyGroup>
+        )
+      }
     </>
   );
 }
 
-function PackageReverseDependencies(props) {
+function DependencyGroup(props) {
   return (
-    <>
-      <p><b>Reverse dependencies: </b></p>
-      <DependencyList deps={props.deps} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}></DependencyList>
-    </>
-  );
-}
-
-function DependencyList(props) {
-  return props.deps.map((depAlts, i) => (
-    <ButtonGroup key={i} className="mx-2">
-      <PackageLinkDependencyAlts depAlts={depAlts} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}/>
+    <ButtonGroup className="mx-3">
+      {props.children}
     </ButtonGroup>
-  ));
+  );
 }
 
-function PackageLinkDependencyAlts(props) {
-  return props.depAlts.map(dep => <PackageLinkDependency key={dep.name} dep={dep} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback} />)
+function InstalledButton(props) {
+  return (
+    <Button variant="secondary" className="mr-1 mt-1" onClick={props.handleClick}>
+      {props.children}
+    </Button>
+  );
 }
 
-function PackageLinkDependency(props) {
-  const buttonClass = "mr-1 mt-1";
-  const onClickDecorated = () => {
-    props.scrollCallback(props.dep.name);
-    props.closeCallback();
-  };
-  if (props.dep.listed) {
-    return (
-      <Button variant="secondary" className={buttonClass} onClick={onClickDecorated}>
-        {props.dep.name}
-      </Button>
-    );
-  } else {
-    return (
-      <Button variant="light" className={buttonClass}>
-        {props.dep.name}
-      </Button>
-    )
-  }
+function MissingButton(props) {
+  return (
+    <Button variant="outline-secondary" className="mr-1 mt-1">
+      {props.children}
+    </Button>
+  );
 }
 
 export default App;
