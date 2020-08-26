@@ -97,7 +97,7 @@ function convertFieldsToPackage(fields) {
     }
 
     if (fieldName === "depends") {
-      // TODO: REFACTOR THIS YOU MONSTER!!!
+      // TODO: REFACTOR THIS, YOU MONSTER!!!
       const deps = fieldValue.split(',');
       const depAlts = deps.map((dep) => dep.split("|").sort());
       const depAltsUniq = depAlts.map((alts) => [...new Set(alts)]);

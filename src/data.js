@@ -36,11 +36,22 @@ function processFile(fileContent) {
 	return packagesWithRevDepsAndDepObjs;
 }
 
-// TODO: actually compute these :-)
 function computeReverseDependencies(packages) {
 	for (let [packageName, packageData] of packages) {
-		packageData.reverseDependencies = [];
-		packages.set(packageName, packageData);
+		// packageData.reverseDependencies = [];
+		// packages.set(packageName, packageData);
+		for (const depAlts of packageData.dependencies) {
+			for (const depName of depAlts) {
+				if (packages.has(depName)) {
+					let depData = packages.get(depName);
+					if (!depData.reverseDependencies) {
+						depData.reverseDependencies = [];
+					}
+					depData.reverseDependencies.push([packageName]);
+					packages.set(depName, depData);
+				}
+			}
+		}
 	}
 	return packages;
 }
@@ -51,6 +62,14 @@ function generateDependencyObjects(packages) {
 			(dep) => ({ name: dep, listed: packages.has(dep) })
 		));
 		packageData.dependencies = depObjs;
+		if (packageData.reverseDependencies) {
+			const revDepObjs = packageData.reverseDependencies.map((revDepAlts) => revDepAlts.map(
+				(revDep) => ({ name: revDep, listed: true })
+			));
+			packageData.reverseDependencies = revDepObjs;
+		} else {
+			packageData.reverseDependencies = [];
+		}
 		packages.set(packageName, packageData);
 	}
 	return packages;

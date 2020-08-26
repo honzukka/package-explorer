@@ -1,6 +1,5 @@
 import React from 'react';
 import Container from 'react-bootstrap/Container';
-import Accordion from 'react-bootstrap/Accordion';
 import Card from 'react-bootstrap/Card';
 import CardDeck from 'react-bootstrap/CardDeck';
 import Button from 'react-bootstrap/Button';
@@ -10,7 +9,6 @@ import Modal from 'react-bootstrap/Modal';
 
 import Data from './data';
 import { getMockData, getFileData } from './data';
-import { useAccordionToggle} from 'react-bootstrap';
 
 // TODO: the Accordion element definition is scattered across multiple functions...
 //    - same thing with the card deck...
@@ -160,6 +158,11 @@ function Item(props) {
             scrollCallback={props.scrollCallback}
             closeCallback={handleClose}
           />
+          <PackageReverseDependencies
+            deps={props.data.reverseDependencies}
+            scrollCallback={props.scrollCallback}
+            closeCallback={handleClose}
+          />
         </Modal.Body>
       </Modal>
     </>
@@ -191,7 +194,7 @@ function PackageReverseDependencies(props) {
   return (
     <>
       <p><b>Reverse dependencies: </b></p>
-      <DependencyList deps={props.deps}></DependencyList>
+      <DependencyList deps={props.deps} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}></DependencyList>
     </>
   );
 }
@@ -202,14 +205,6 @@ function DependencyList(props) {
       <PackageLinkDependencyAlts depAlts={depAlts} scrollCallback={props.scrollCallback} closeCallback={props.closeCallback}/>
     </ButtonGroup>
   ));
-}
-
-function PackageLinkHeader(props) {
-  return (
-      <Accordion.Toggle as={Button} variant="link" eventKey={props.name}>
-        {props.name}
-      </Accordion.Toggle>
-  );
 }
 
 function PackageLinkDependencyAlts(props) {
