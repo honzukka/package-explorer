@@ -1,6 +1,6 @@
 import $ from 'jquery';
 
-import mockFile from './status.real';
+import mockFile from '../status.real';
 import parseFile from './parser'
 
 // TODO: do not show alert upon error here. App.js takes care of UI stuff
@@ -57,12 +57,12 @@ function computeReverseDependencies(packages) {
 function generateDependencyObjects(packages) {
 	for (let [packageName, packageData] of packages) {
 		const depObjs = packageData.dependencies.map((depAlts) => depAlts.map(
-			(dep) => ({ name: dep, listed: packages.has(dep) })
+			(dep) => ({ name: dep, installed: packages.has(dep) })
 		));
 		packageData.dependencies = depObjs;
 		if (packageData.reverseDependencies) {
 			const revDepObjs = packageData.reverseDependencies.map((revDepAlts) => revDepAlts.map(
-				(revDep) => ({ name: revDep, listed: true })
+				(revDep) => ({ name: revDep, installed: true })
 			));
 			packageData.reverseDependencies = revDepObjs;
 		} else {
