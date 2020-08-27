@@ -1,9 +1,9 @@
 import React from 'react';
 import Container from 'react-bootstrap/Container';
+import Button from 'react-bootstrap/Button';
 
-import './App.css';
 import { InputSection, FileInputForm, LoadingButton } from './inputSection'
-import { PackageList, Item } from './packageSection';
+import { PackageList, PackageInformation } from './packageSection';
 import { getMockData, getFileData } from '../back_end/data';
 
 /**
@@ -13,15 +13,15 @@ class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      packages: new Map()
+      packageNames: [],
+      currentPackageInfo: null
     };
 
-    this.packageInfoToggles = new Map();
+    this.packages = new Map();
 
     this.setMockData = this.setMockData.bind(this);
     this.setFileData = this.setFileData.bind(this);
-    this.registerInfoToggle = this.registerInfoToggle.bind(this);
-    this.toggleInfo = this.toggleInfo.bind(this);
+    this.showPackageInfo = this.showPackageInfo.bind(this);
   }
 
   async setMockData() {
@@ -35,36 +35,30 @@ class App extends React.Component {
   }
 
   /**
-   * Adds a callback for switching from a package's info panel to another one.
-   * The callback is saved at the dependency level where it is clear
-   * where from and where to we are switching.
+   * Each dependency and reverse dependency in the data
+   * is assigned a function which shows its information.
+   * Then the package data is saved in this object.
    */
   setData(data) {
     for (let [packageName, packageData] of data) {
-      let depsList = [packageData.dependencies, packageData.reverseDependencies];
-      [packageData.dependencies, packageData.reverseDependencies] = depsList.map(
-        (deps) => deps.map((depGroup) => depGroup.map((dep) => ({
-          name: dep.name,
-          installed: dep.installed,
-          toggleInfo: () => this.toggleInfo.bind(this)(packageName, dep.name)
-        })))
+      [packageData.dependencies, packageData.reverseDependencies].map(
+        (deps) => deps.map((depGroup) => depGroup.map((dep) => 
+          dep.showPackageInfo = () => this.showPackageInfo(dep.name)
+        ))
       );
       data.set(packageName, packageData);
     }
-    this.setState({ packages: data });
+
+    this.packages = data;
+    const packageNames = Array.from(data).map(([packageName, packageData]) => packageName);
+    this.setState({ packageNames: packageNames, currentPackageInfo: null });
   }
 
-  registerInfoToggle(packageName, show, close) {
-    this.packageInfoToggles.set(packageName, { show: show, close: close });
-  }
-
-  /**
-   * This function closes the previously registered component
-   * of one package's info panel and opens another one.
-   */
-  toggleInfo(prevPackageName, nextPackageName) {
-    this.packageInfoToggles.get(prevPackageName).close();
-    this.packageInfoToggles.get(nextPackageName).show();
+  showPackageInfo(packageName) {
+    const packageNames = this.state.packageNames;
+    let currentPackageInfo = this.packages.get(packageName);
+    currentPackageInfo.name = packageName;
+    this.setState({ packageNames: packageNames, currentPackageInfo: currentPackageInfo });
   }
 
   render() {
@@ -86,15 +80,19 @@ class App extends React.Component {
 
         <PackageList header={{__html: "Here is what the <code>/var/lib/dpkg/status</code> has revealed:"}}>
           {
-            Array.from(this.state.packages).map(([packageName, packageData]) => 
-              <Item key={packageName}
-                name={packageName}
-                data={packageData}
-                registerInfoToggle={this.registerInfoToggle}
-              />
+            this.state.packageNames.map((packageName) => 
+              <Button key={packageName}
+                className="m-2"
+                variant="outline-secondary"
+                onClick={() => this.showPackageInfo(packageName)}
+              >
+                {packageName}
+              </Button>
             )
           }
         </PackageList>
+
+        <PackageInformation info={this.state.currentPackageInfo}/>
       </Container>
     );
   }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Card from 'react-bootstrap/Card';
 import Button from 'react-bootstrap/Button';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
@@ -27,41 +27,27 @@ function PackageList(props) {
 }
 
 /**
- * This component receives single package data
- * and returns the link to package information and the information panel itself. 
- * It also passes two functions to the registerInfoToggle callback:
- * one which shows the information panel and one which hides it.
+ * When props.info is set, this component proceeds to show a modal window
+ * containing package information.
  */
-function Item(props) {
-  let itemRef = React.createRef();
-
+function PackageInformation(props) {
+  const info = props.info;
   const [show, setShow] = React.useState(false);
   const handleClose = () => setShow(false);
-  const handleShow = () => {
-    setShow(true);
-    itemRef.current.focus();
-  };
-  const handleShown = () => itemRef.current.scrollIntoView();
 
-  props.registerInfoToggle(props.name, handleShow, handleClose);
+  useEffect(() => { if (info) setShow(true); }, [info]);
 
   return (
-    <>
-      <Button ref={itemRef} className="m-2" variant="outline-secondary" onClick={handleShow}>
-        {props.name}
-      </Button>
-
-      <Modal show={show} onHide={handleClose} onEntered={handleShown} size='lg'>
-        <Modal.Header closeButton>
-          <PackageTitle name={props.name} />
-        </Modal.Header>
-        <Modal.Body>
-          <PackageDescription description={props.data.description} />
-          <Dependencies header="Dependencies:" dependencies={props.data.dependencies} />
-          <Dependencies header="Reverse dependencies:" dependencies={props.data.reverseDependencies} />
-        </Modal.Body>
-      </Modal>
-    </>
+    <Modal show={show} onHide={handleClose} size='lg'>
+      <Modal.Header closeButton>
+        <PackageTitle name={info?.name} />
+      </Modal.Header>
+      <Modal.Body>
+        <PackageDescription description={info?.description} />
+        <Dependencies header="Dependencies:" deps={info?.dependencies} />
+        <Dependencies header="Reverse dependencies:" deps={info?.reverseDependencies} />
+      </Modal.Body>
+    </Modal>
   );
 }
 
@@ -90,11 +76,11 @@ function Dependencies(props) {
     <>
       <p className="mt-3"><b>{props.header}</b></p>
       {
-        props.dependencies.map((depGroup, i) => 
+        props.deps.map((depGroup, i) => 
           <ButtonGroup key={i} className="mx-3">
             {
               depGroup.map((dep) => dep.installed ?
-                <InstalledButton key={dep.name} handleClick={dep.toggleInfo}>{dep.name}</InstalledButton> :
+                <InstalledButton key={dep.name} onClick={dep.showPackageInfo}>{dep.name}</InstalledButton> :
                 <MissingButton key={dep.name}>{dep.name}</MissingButton>
               )
             }
@@ -106,14 +92,12 @@ function Dependencies(props) {
 }
 
 /**
- * This button uses a callback on the dependency
- * which was added to the data in a preprocessing step.
- * This callback switches the context from the current package
- * to the one which is clicked.
+ * This button's onClick is meant to show information
+ * about the installed dependency.
  */
 function InstalledButton(props) {
   return (
-    <Button variant="secondary" className="mr-1 mt-1" onClick={props.handleClick}>
+    <Button variant="secondary" className="mr-1 mt-1" onClick={props.onClick}>
       {props.children}
     </Button>
   );
@@ -129,5 +113,6 @@ function MissingButton(props) {
 
 export {
   PackageList,
-  Item
+  //Item,
+  PackageInformation
 };
