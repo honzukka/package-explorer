@@ -30,46 +30,47 @@ async function getFileData(file) {
 }
 
 function processFile(fileContent) {
-	const packages = parseFile(fileContent);
-	const packagesWithRevDeps = computeReverseDependencies(packages);
-	const packagesWithRevDepsAndDepObjs = generateDependencyObjects(packagesWithRevDeps);
-	return packagesWithRevDepsAndDepObjs;
+	const parsedFile = parseFile(fileContent);
+	const packages = structureData(parsedFile);
+	const sortedPackages = sortAlphabetically(packages);
+	const sortedPackagesWithRevDeps = computeReverseDependencies(sortedPackages);
+	return sortedPackagesWithRevDeps;
 }
 
-function computeReverseDependencies(packages) {
-	for (let [packageName, packageData] of packages) {
-		for (const depAlts of packageData.dependencies) {
-			for (const depName of depAlts) {
-				if (packages.has(depName)) {
-					let depData = packages.get(depName);
-					if (!depData.reverseDependencies) {
-						depData.reverseDependencies = [];
-					}
-					depData.reverseDependencies.push([packageName]);
-					packages.set(depName, depData);
-				}
-			}
-		}
-	}
+function structureData(parsedFile) {
+	let packages = new Map();
+	parsedFile.forEach(packageFields => {
+		const packageObj = packageFields.reduce((acc, val) => Object.assign(acc, val));
+		packages.set(packageObj.package, {
+			description: packageObj.description ? packageObj.description : "",
+			dependencies: packageObj.depends ? packageObj.depends : [],
+			reverseDependencies: []
+		})
+	});
+	Array.from(packages).forEach(([packageName, packageData]) => {
+		packageData.dependencies = packageData.dependencies.map((depGroup) =>
+			depGroup.map((dep) => ({ name: dep, installed: packages.has(dep) }))
+		);
+	});
 	return packages;
 }
 
-function generateDependencyObjects(packages) {
-	for (let [packageName, packageData] of packages) {
-		const depObjs = packageData.dependencies.map((depAlts) => depAlts.map(
-			(dep) => ({ name: dep, installed: packages.has(dep) })
-		));
-		packageData.dependencies = depObjs;
-		if (packageData.reverseDependencies) {
-			const revDepObjs = packageData.reverseDependencies.map((revDepAlts) => revDepAlts.map(
-				(revDep) => ({ name: revDep, installed: true })
-			));
-			packageData.reverseDependencies = revDepObjs;
-		} else {
-			packageData.reverseDependencies = [];
-		}
-		packages.set(packageName, packageData);
-	}
+function sortAlphabetically(packages) {
+	return new Map(Array.from(packages).sort());
+}
+
+function computeReverseDependencies(packages) {
+	Array.from(packages).forEach(([packageName, packageData]) => {
+		packageData.dependencies.forEach((depGroup) => {
+			depGroup.forEach((dep) => {
+				if (packages.has(dep.name)) {
+					let depData = packages.get(dep.name);
+					depData.reverseDependencies.push([{ name: packageName, installed: true }]);
+					packages.set(dep.name, depData);
+				}
+			});
+		});
+	});
 	return packages;
 }
 

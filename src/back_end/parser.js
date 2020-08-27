@@ -3,15 +3,15 @@
 //    b) inform the user that the input is badly formatted
 // TODO: make error messages more informative (include faulty input)
 
-function parseFile(fileContent, relevantFieldNames=['package', 'description', 'depends']) {
-	const packages = (
-		splitIntoParagraphs(fileContent)
-		.map((paragraph) => splitIntoFields(paragraph))
-    .map((fields) => filterFields(fields, relevantFieldNames))
-    .map((fields) => fields.map((field) => normalizeField(field)))
-    .map((fields) => convertFieldsToPackage(fields, relevantFieldNames))
+function parseFile(fileContent) {
+  const relevantFieldNames = ["package", "description", "depends"]
+  const [packFieldName, , depFieldName] = relevantFieldNames; 
+  return (
+    splitIntoParagraphs(fileContent)
+    .map((paragraph) => splitIntoFields(paragraph, relevantFieldNames))
+    .map((fields) => fields.map((field) => parseField(field, depFieldName, packFieldName)))
+    .map((fields) => verifyStructure(fields, packFieldName, relevantFieldNames.length))
   );
-  return insertPackagesIntoMap(packages);
 }
 
 function splitIntoParagraphs(fileContent) {
@@ -25,130 +25,72 @@ function splitIntoParagraphs(fileContent) {
   }
 }
 
-function splitIntoFields(paragraph) {
-  const fieldNameRegex = /^[^ \t]*:/gm;
-  const properFieldNameRegex = /^(?![#-])[\u0021-\u0039\u003b-\u007e]+:/m;
-  const paragraphAnnotated = ("\n" + paragraph).replace(fieldNameRegex, '\n$&');
-  const fields = paragraphAnnotated.split('\n\n');
-  const properFields = fields.filter(field => field.match(properFieldNameRegex) !== null);
-  if (properFields.length > 0) {
-    return properFields;
+function splitIntoFields(paragraph, relevantFieldNames) {
+  const namesPattern = relevantFieldNames.reduce((acc, val) => acc + '|' + val);
+  const fieldStartRegex = new RegExp("^(?:" + namesPattern + "):", "gmi");
+  const fieldEndRegex = /(\n\S|\s*$)/g;
+  let fields = [];
+  let i = 0;
+  do {
+    const fieldStart = paragraph.slice(i).search(fieldStartRegex);
+    if (fieldStart === -1) break;
+    const fieldEnd = paragraph.slice(i + fieldStart).search(fieldEndRegex);
+    if (fieldEnd === -1) throw new Error("Bad field formatting.");
+    fields.push(paragraph.slice(i + fieldStart, i + fieldStart + fieldEnd));
+    i += fieldStart + fieldEnd + 1;
+  } while (i < paragraph.length);
+
+  if (fields.length > 0) {
+    return fields;
   } else {
-    throw Error("One of the paragraphs has no fields.");
+    throw Error("No fields found in paragraph.");
   }
 }
 
-function filterFields(fields, relevantFieldNames) {
-	return fields.filter(field => {
-    const nameEndIndex = field.search(":");
-    const fieldName = field.slice(0, nameEndIndex);
-    const fieldValue = field.slice(nameEndIndex + 1);
-    return (
-      relevantFieldNames.includes(fieldName.toLowerCase()) &&
-      fieldValue.trim().length > 0
-    );
-  });
+function parseField(field, depFieldName, packFieldName) {
+  const nameEnd = field.search(":");
+  const fieldName = field.slice(0, nameEnd).toLowerCase();
+  const fieldValue = field.slice(nameEnd + 1).trim();
+  const valueLines = fieldValue.split("\n").map((line) => {
+    const hashInd = line.search("#");
+    if (hashInd === -1) return line;                // remove comments
+    else return line.slice(0, hashInd);
+  }).filter((line) => line.match(/\S/) !== null);   // filter out lines containing only whitespace
+
+
+  let result = {};
+  if (fieldName === depFieldName)
+    result[fieldName] = valueLines.map((line) => parseDependencies(line)).flat(1);
+  else if (fieldName === packFieldName)
+    result[fieldName] = valueLines[0];
+  else
+    result[fieldName] = valueLines;
+  return result;
 }
 
-function normalizeField(field) {
-  const nameEndIndex = field.search(":");
-  const fieldName = field.slice(0, nameEndIndex).toLowerCase();
-  const fieldValue = field.slice(nameEndIndex + 1);
-  let validValueLines = fieldValue.split("\n").filter((line) => line !== "" && line[0] !== "#");
-  for (let i = 0; i < validValueLines.length; i++) {
-    if (i > 0 && [" ", "\t"].includes(validValueLines[i][0]) === false) {
-      throw Error("Continuation line doesn't start with a space or a tab.");
-    } else if (i > 0) {
-      validValueLines[i] = validValueLines[i].slice(1);
-    } else {
-      validValueLines[i] = validValueLines[i].trimStart();
-    }
-    validValueLines[i] = validValueLines[i].trimEnd().replace(/^[ \t]*\.[ \t]*$/g, "");
-  }
-  if (fieldName === "depends") {
-    validValueLines = validValueLines.map((line) => line.replace(/\([^(]*\)/g, "").trim());
-    validValueLines = validValueLines.map((line) => line.replace(/ *([,|]) +/g, "$1"));
-  }
-  return fieldName + ":" + validValueLines.reduce(
-    (accumulator, valueLine) => accumulator + "\n" + valueLine
-  );
+function parseDependencies(depString) {
+  const depGroups = depString.split(",").map((depGroup) => depGroup.trim());
+  const deps = depGroups.map((depGroup) => depGroup.split("|").sort().map((dep) => dep.trim()));
+  const depsNoVersion = deps.map((depGroup) => depGroup.map((dep) => dep.replace(/\([^(]*\)/g, "").trim()));
+  const depsNoVersionUniqAlts = depsNoVersion.map((depGroup) => [...new Set(depGroup)].reduce((acc, val) => acc + "|" + val));
+  const depsNoVersionUniqAll = [...new Set(depsNoVersionUniqAlts)].map((depGroup) => depGroup.split("|"));
+  return depsNoVersionUniqAll;
 }
 
-function convertFieldsToPackage(fields) {
-  let fieldNamesIncluded = [];
-  let packageObj = {};
-  for (const field of fields) {
-    const nameEndIndex = field.search(":");
-    const fieldName = field.slice(0, nameEndIndex);
-    const fieldValue = field.slice(nameEndIndex + 1);
-
-    if (fieldNamesIncluded.includes(fieldName)) {
-      throw Error("Some field names are repeated.");
-    }
-    fieldNamesIncluded.push(fieldName);
-
-    if (fieldName === "package" || fieldName === "depends") {
-      if (fieldValue.includes(" ")) {
-        throw Error(
-          "Spaces inside package names are not allowed.\n" +
-          "package: " + fieldValue
-        );
-      }
-    }
-
-    if (fieldName === "depends") {
-      // TODO: REFACTOR THIS, YOU MONSTER!!!
-      const deps = fieldValue.split(',');
-      const depAlts = deps.map((dep) => dep.split("|").sort());
-      const depAltsUniq = depAlts.map((alts) => [...new Set(alts)]);
-      const depUniqAltsUniq = [...new Set(depAltsUniq.map((alts) => alts.reduce((acc, alt) => acc + "|" + alt)))].map((altsStr) => altsStr.split("|"));
-      packageObj[fieldName] = depUniqAltsUniq;
-    } else {
-      packageObj[fieldName] = fieldValue;
-    }
-  }
-
-  if (fieldNamesIncluded.includes("package") === false) {
-    throw Error("Package field missing.")
-  }
-  if (fieldNamesIncluded.includes("depends") === false) {
-    packageObj["depends"] = [];
-  }
-  if (fieldNamesIncluded.includes("description") === false) {
-    packageObj["description"] = "";
-  }
-
-  return packageObj;
-}
-
-function insertPackagesIntoMap(packages) {
-  let packagesMap = new Map();
-  packages.sort((p1, p2) => {
-    if (p1.package < p2.package) {
-      return -1;
-    } else if (p1.package > p2.package) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }).map(
-    (packageObj) => packagesMap.set(
-      packageObj.package,
-      {
-        description: packageObj.description,
-        dependencies: packageObj.depends
-      }
-    )
-  );
-  return packagesMap;
+function verifyStructure(fields, packFieldName, fieldCount) {
+  const packageFieldNames = fields.map((field) => Object.keys(field)[0]);
+  if (!packageFieldNames.includes(packFieldName)) throw Error("Package name field missing.");
+  if (packageFieldNames.length > fieldCount) throw Error("Too many package fields.");
+  if ([...new Set(packageFieldNames)].length !== packageFieldNames.length)
+    throw Error("Duplicate field names.");
+  return fields;
 }
 
 export default parseFile;
 export {
 	splitIntoParagraphs,
-	splitIntoFields,
-	filterFields,
-  normalizeField,
-  convertFieldsToPackage,
-  insertPackagesIntoMap
+  splitIntoFields,
+  parseField,
+  parseDependencies,
+  verifyStructure
 };

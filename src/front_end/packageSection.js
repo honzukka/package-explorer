@@ -55,14 +55,10 @@ function PackageTitle(props) {
   return <h2 className="mb-3">{props.name}</h2>;
 }
 
-/**
- * This component replaces every "\n" character in the input with a corresponding HTML tag
- * and inserts everything into a paragraph.
- */
 function PackageDescription(props) {
   return (
     <p className="mb-3" style={{ whiteSpace: `pre-wrap` }}>
-      {props.description.split("\n").map((line, i) => <span key={i}>{line}<br/></span>)}
+      {props.description.map((line, i) => <span key={i}>{line}<br/></span>)}
     </p>
   );
 }

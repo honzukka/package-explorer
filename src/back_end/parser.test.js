@@ -1,16 +1,17 @@
 /* 
-written according to:
-https://www.debian.org/doc/debian-policy/ch-controlfields.html#syntax-of-control-files 
+  written according to:
+  https://www.debian.org/doc/debian-policy/ch-controlfields.html#syntax-of-control-files 
 */
 
 import {
 	splitIntoParagraphs,
-	splitIntoFields,
-	filterFields,
-  normalizeField,
-  convertFieldsToPackage,
-  insertPackagesIntoMap
+  splitIntoFields,
+  parseField,
+  parseDependencies,
+  verifyStructure
 } from './parser';
+
+/* ----------------------------------------------------------------------- */
 
 test("split into paragraphs: empty line separator", () => {
   const fileContent = "Hello\n\nworld\n!";
@@ -54,318 +55,288 @@ test("split into paragraphs: 1 empty paragraph with 2 separators", () => {
 /* ----------------------------------------------------------------------- */
 
 test("split into fields: single-line fields", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "Package: foo\nDescription: bar";
-  const fields = splitIntoFields(paragraph);
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
   expect(fields).toEqual(["Package: foo", "Description: bar"]);
 });
 
 test("split into fields: multi-line fields", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "Package: foo\nDescription: bar\n .\n bar";
-  const fields = splitIntoFields(paragraph);
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
   expect(fields).toEqual(["Package: foo", "Description: bar\n .\n bar"]);
 });
 
 test("split into fields: ignore #", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "Package: foo\n#Description: bar";
-  const fields = splitIntoFields(paragraph);
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
   expect(fields).toEqual(["Package: foo"]);
 });
 
 test("split into fields: ignore -", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "Package: foo\n-Description: bar";
-  const fields = splitIntoFields(paragraph);
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
   expect(fields).toEqual(["Package: foo"]);
 });
 
 test("split into fields: empty paragraph", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "";
-  expect(() => splitIntoFields(paragraph)).toThrow();
+  expect(() => splitIntoFields(paragraph, relevantFieldNames)).toThrow();
 });
 
 test("split into fields: paragraph with no fields (colon missing)", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "Hello\nworld!";
-  expect(() => splitIntoFields(paragraph)).toThrow();
+  expect(() => splitIntoFields(paragraph, relevantFieldNames)).toThrow();
 });
 
 test("split into fields: ignore colons in values", () => {
+  const relevantFieldNames = ['package', 'description', 'depends'];
   const paragraph = "Description: foo\n bar:";
-  const fields = splitIntoFields(paragraph);
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
   expect(fields).toEqual(["Description: foo\n bar:"]);
 });
 
-/* ----------------------------------------------------------------------- */
-
-test("filter fields: nothing to be filtered out", () => {
+test("split into fields: 2 extra fields", () => {
   const relevantFieldNames = ['package', 'description', 'depends'];
-  const fields = ["Package: foo", "Description: bar", "Depends: pre_foo"];
-  const filteredFields = filterFields(fields, relevantFieldNames);
-  expect(filteredFields).toEqual(["Package: foo", "Description: bar", "Depends: pre_foo"]);
+  const paragraph = "Package: foo\nScore: 500\nFeelings: mixed";
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
+  expect(fields).toEqual(["Package: foo"]);
 });
 
-test("filter fields: 2 extra fields", () => {
+test("split into fields: weird case", () => {
   const relevantFieldNames = ['package', 'description', 'depends'];
-  const fields = ["Package: foo", "Weight: 500", "Feelings: mixed"];
-  const filteredFields = filterFields(fields, relevantFieldNames);
-  expect(filteredFields).toEqual(["Package: foo"]);
+  const paragraph = "Package: foo\ndesCRiption: bar\nDEPENDS: pre_foo";
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
+  expect(fields).toEqual(["Package: foo", "desCRiption: bar", "DEPENDS: pre_foo"]);
 });
 
-test("filter fields: weird capitalization in field names", () => {
+test("split into fields: handle colons in values", () => {
   const relevantFieldNames = ['package', 'description', 'depends'];
-  const fields = ["package: foo", "deSCription: bar", "DEPENDS: pre_foo"];
-  const filteredFields = filterFields(fields, relevantFieldNames);
-  expect(filteredFields).toEqual(["package: foo", "deSCription: bar", "DEPENDS: pre_foo"]);
-});
-
-test("filter fields: all extra fields", () => {
-  const relevantFieldNames = ['package', 'description', 'depends'];
-  const fields = ["Weight: 500", "Feelings: mixed"];
-  const filteredFields = filterFields(fields, relevantFieldNames);
-  expect(filteredFields).toEqual([]);
-});
-
-test("filter fields: ignore field with no value", () => {
-  const relevantFieldNames = ['package', 'description', 'depends'];
-  const fields = ["Package: foo", "Description: "];
-  const filteredFields = filterFields(fields, relevantFieldNames);
-  expect(filteredFields).toEqual(["Package: foo"]);
-});
-
-test("filter fields: ignore colons in values", () => {
-  const relevantFieldNames = ['package', 'description', 'depends'];
-  const fields = ["Description: :bar"];
-  const filteredFields = filterFields(fields, relevantFieldNames);
-  expect(filteredFields).toEqual(["Description: :bar"])
+  const paragraph = "Description: :bar";
+  const fields = splitIntoFields(paragraph, relevantFieldNames);
+  expect(fields).toEqual(["Description: :bar"]);
 });
 
 /* ----------------------------------------------------------------------- */
 
-test("normalize and verify field: correct, single-line", () => {
-  const field = "Package: foo";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("package:foo");
+test("parse field: normal package field", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "package: foo";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.package).toEqual("foo");
 });
 
-test("normalize and verify field: correct, single-line, weird capitalization", () => {
-  const field = "DeSCription: bar";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:bar");
+test("parse field: normal description field", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "description: foo";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.description).toEqual(["foo"]);
 });
 
-test("normalize and verify field: remove spaces between dependencies", () => {
-  const field = "depends: foo, bar | bar2";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("depends:foo,bar|bar2");
+test("parse field: normal dependens field", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "depends: foo";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.depends).toEqual([["foo"]]);
 });
 
-test("normalize and verify field: keep spaces inside dependency names", () => {
-  const field = "depends: foo, bar bar2";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("depends:foo,bar bar2");
+test("parse field: weird case", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "PaCKage: foo";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.package).toEqual("foo");
 });
 
-test("normalize and verify field: strip dependency version numbers", () => {
-  const field = "depends: foo, bar (>=0.0.5)";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("depends:foo,bar");
+test("parse field: alternate dependencies", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "depends: foo | foo2";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.depends[0]).toContain("foo");
+  expect(parsedField.depends[0]).toContain("foo2");
 });
 
-test("normalize and verify field: correct, multi-line", () => {
+test("parse field: mixed dependencies", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "depends: bar, foo | foo2";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.depends[0]).toEqual(["bar"])
+  expect(parsedField.depends[1]).toContain("foo");
+  expect(parsedField.depends[1]).toContain("foo2");
+});
+
+test("parse field: multiline description field", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
   const field = "description: foo\n bar";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo\nbar");
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.description).toEqual(["foo", " bar"]);
 });
 
-test("normalize and verify field: correct, multi-line - blank line", () => {
+test("parse field: multiline description field - blank line", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
   const field = "description: foo\n .\n bar";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo\n\nbar");
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.description).toEqual(["foo", " .", " bar"]);
 });
 
-test("normalize and verify field: correct, multi-line - with a comment", () => {
+test("parse field: multiline description field - comment", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
   const field = "description: foo\n#comment\n bar";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo\nbar");
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.description).toEqual(["foo", " bar"]);
 });
 
-test("normalize and verify field: correct, single-line - extra whitespace", () => {
-  const field = "package: \tfoo  \t";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("package:foo");
+test("parse field: multiline description field - comment after whitespace", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "description: foo\n  #comment\n bar";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.description).toEqual(["foo", " bar"]);
 });
 
-test("normalize and verify field: correct, multi-line - extra new line", () => {
-  const field = "description: foo\n";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo");
+test("parse field: value field - comment in the middle", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "description: foo#bar";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.description).toEqual(["foo"]);
 });
 
-test("normalize and verify field: wrong, multi-line - missing space on a continuation line", () => {
-  const field = "Description: foo\nbar";
-  expect(() => normalizeField(field)).toThrow();
-});
-
-test("normalize and verify field: weird capitalization in the depends field", () => {
-  const field = "Depends: bar, foo";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("depends:bar,foo");
-});
-
-test("normalize and verify field: multiple blank lines", () => {
-  const field = "description: foo\n .\n bar\n .\n bar";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo\n\nbar\n\nbar");
-});
-
-test("normalize and verify field: do not remove all the dots", () => {
-  const field = "description: foo. bar bar.\n .\n bar";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo. bar bar.\n\nbar");
-});
-
-test("normalize and verify field: trim only 1 space/tab from continuation lines", () => {
-  const field = "description: foo\n  * bar\n  * bar2";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo\n * bar\n * bar2");
-});
-
-test("normalize and verify field: ignore colons in values", () => {
-  const field = "description: foo:\n  * bar\n  * bar2";
-  const normalizedField = normalizeField(field);
-  expect(normalizedField).toEqual("description:foo:\n * bar\n * bar2");
+test("parse field: ignore colons in values", () => {
+  const depFieldName = "depends";
+  const packFieldName = "package";
+  const field = "package: :foo";
+  const parsedField = parseField(field, depFieldName, packFieldName);
+  expect(parsedField.package).toEqual(":foo");
 });
 
 /* ----------------------------------------------------------------------- */
 
-test("convert fields to package: no fields missing", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {package: "foo", description: "bar", depends: [["pre_foo"]]}
-  );
+test("parse dependencies: simple dependency", () => {
+  const depString = "foo";
+  const deps = parseDependencies(depString);
+  expect(deps).toEqual([["foo"]]);
 });
 
-test("convert fields to package: package field missing", () => {
-  const fields = ["description:bar", "depends:pre_foo"];
-  expect(() => convertFieldsToPackage(fields)).toThrow();
+test("parse dependencies: alternate dependencies", () => {
+  const depString = "foo | bar";
+  const deps = parseDependencies(depString);
+  expect(deps[0]).toContain("foo");
+  expect(deps[0]).toContain("bar");
 });
 
-test("convert fields to package: description field missing", () => {
-  const fields = ["package:foo", "depends:pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual({package: "foo", description: "", depends: [["pre_foo"]]});
+test("parse dependencies: mixed dependencies", () => {
+  const depString = "foo, foo2 | bar";
+  const deps = parseDependencies(depString);
+  expect(deps[0]).toEqual(["foo"]);
+  expect(deps[1]).toContain("foo2");
+  expect(deps[1]).toContain("bar");
 });
 
-test("convert fields to package: depends field missing", () => {
-  const fields = ["package:foo", "description:bar"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual({package: "foo", description: "bar", depends: []});
+test("parse dependencies: keep space in dependency name", () => {
+  const depString = "foo bar";
+  const deps = parseDependencies(depString);
+  expect(deps).toEqual([["foo bar"]]);
 });
 
-test("convert fields to package: repeated field name", () => {
-  const fields = ["package:foo", "description:bar", "description:bar2", "depends:pre_foo"];
-  expect(() => convertFieldsToPackage(fields)).toThrow();
+test("parse dependencies: strip version numbers", () => {
+  const depString = "foo, bar (>=0.0.5)";
+  const deps = parseDependencies(depString);
+  expect(deps[0]).toContain("foo");
+  expect(deps[1]).toContain("bar");
 });
 
-test("convert fields to package: package name contains whitespace", () => {
-  const fields = ["package:fo o", "description:bar", "depends:pre_foo"];
-  expect(() => convertFieldsToPackage(fields)).toThrow();
+test("parse dependencies: remove duplicate dependencies", () => {
+  const depString = "foo, foo";
+  const deps = parseDependencies(depString);
+  expect(deps).toEqual([["foo"]]);
 });
 
-test("convert fields to package: dependency name contains whitespace", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre foo"];
-  expect(() => convertFieldsToPackage(fields)).toThrow();
+test("parse dependencies: remove duplicate dependencies with versions", () => {
+  const depString = "foo, foo (>=0.0.5)";
+  const deps = parseDependencies(depString);
+  expect(deps).toEqual([["foo"]]);
 });
 
-test("convert fields to package: 2 dependencies", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre_foo,pre_pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {package: "foo", description: "bar", depends: [["pre_foo"], ["pre_pre_foo"]]}
-  );
+test("parse dependencies: remove duplicate alternate dependencies", () => {
+  const depString = "foo, bar | bar";
+  const deps = parseDependencies(depString);
+  expect(deps).toEqual([["foo"], ["bar"]]);
 });
 
-test("convert fields to package: optional dependency", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre_foo|pre_foo2"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {package: "foo", description: "bar", depends: [["pre_foo", "pre_foo2"]]}
-  );
+test("parse dependencies: remove duplicate dependency groups", () => {
+  const depString = "foo, bar1 | bar2, bar1 | bar2";
+  const deps = parseDependencies(depString);
+  expect(deps[0]).toEqual(["foo"]);
+  expect(deps[1]).toContain("bar1");
+  expect(deps[1]).toContain("bar2");
+  expect(deps.length).toEqual(2);
+  expect(deps[1].length).toEqual(2);
 });
 
-test("convert fields to package: mixed dependencies", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre_foo|pre_foo2,pre_pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {
-      package: "foo",
-      description: "bar",
-      depends: [["pre_foo", "pre_foo2"], ["pre_pre_foo"]]}
-  );
-});
-
-test("convert fields to package: repeated dependency (after stripping version numbers)", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre_foo,pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {package: "foo", description: "bar", depends: [["pre_foo"]]}
-  );
-});
-
-test("convert fields to package: repeated optional dependency (after stripping version numbers)", () => {
-  const fields = ["package:foo", "description:bar", "depends:pre_foo|pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {package: "foo", description: "bar", depends: [["pre_foo"]]}
-  );
-});
-
-test("convert fields to package: ignore colons in values", () => {
-  const fields = ["package:foo", "description:bar: 50", "depends:pre_foo"];
-  const packageResult = convertFieldsToPackage(fields);
-  expect(packageResult).toEqual(
-    {package: "foo", description: "bar: 50", depends: [["pre_foo"]]}
-  );
+test("parse dependencies: remove all duplicates", () => {
+  const depString = "foo, bar | bar, bar | bar";
+  const deps = parseDependencies(depString);
+  expect(deps).toEqual([["foo"], ["bar"]]);
 });
 
 /* ----------------------------------------------------------------------- */
 
-test("insert packages into map: all fields available", () => {
-  const packages = [
-    { package: "foo", description: "lorem ipsum", depends: [["bar"]] },
-    { package: "foo2", description: "lorem ipsum2", depends: [["bar2"]] }
-  ];
-  const packageMap = insertPackagesIntoMap(packages);
-  expect(packageMap.get("foo")).toEqual({ description: "lorem ipsum", dependencies: [["bar"]] });
-  expect(packageMap.get("foo2")).toEqual({ description: "lorem ipsum2", dependencies: [["bar2"]] });
+test("verify structure: everything ok", () => {
+  const packFieldName = "package";
+  const fieldCount = 3;
+  const fields = [{package: "foo"}, {description: "bar"}, {depends: "pre_foo"}];
+  expect(verifyStructure(fields, packFieldName, fieldCount)).toEqual(fields);
 });
 
-test("insert packages into map: description missing", () => {
-  const packages = [
-    { package: "foo", depends: [["bar"]] },
-    { package: "foo2", depends: [["bar2"]] }
-  ];
-  const packageMap = insertPackagesIntoMap(packages);
-  expect(packageMap.get("foo")).toEqual({ dependencies: [["bar"]] });
-  expect(packageMap.get("foo2")).toEqual({ dependencies: [["bar2"]] });
+test("verify structure: depends field missing", () => {
+  const packFieldName = "package";
+  const fieldCount = 3;
+  const fields = [{package: "foo"}, {description: "bar"}];
+  expect(verifyStructure(fields, packFieldName, fieldCount)).toEqual(fields);
 });
 
-test("insert packages into map: depends missing", () => {
-  const packages = [
-    { package: "foo", description: "lorem ipsum" },
-    { package: "foo2", description: "lorem ipsum2" }
-  ];
-  const packageMap = insertPackagesIntoMap(packages);
-  expect(packageMap.get("foo")).toEqual({ description: "lorem ipsum" });
-  expect(packageMap.get("foo2")).toEqual({ description: "lorem ipsum2" });
+test("verify structure: package field missing", () => {
+  const packFieldName = "package";
+  const fieldCount = 3;
+  const fields = [{description: "bar"}, {depends: "pre_foo"}];
+  expect(() => verifyStructure(fields, packFieldName, fieldCount)).toThrow();
 });
 
-test("insert packages into map: alphabetical ordering", () => {
-  const packages = [
-    { package: "cfoo", description: "lorem ipsum2" },
-    { package: "afoo2", description: "lorem ipsum" }
-  ];
-  const packageMap = insertPackagesIntoMap(packages);
-  const packageMapValIt = packageMap.values();
-  expect(packageMapValIt.next().value).toEqual({ description: "lorem ipsum" });
-  expect(packageMapValIt.next().value).toEqual({ description: "lorem ipsum2" });
+test("verify structure: description field missing", () => {
+  const packFieldName = "package";
+  const fieldCount = 3;
+  const fields = [{package: "foo"}, {depends: "pre_foo"}];
+  expect(verifyStructure(fields, packFieldName, fieldCount)).toEqual(fields);
 });
+
+test("verify structure: too many fields", () => {
+  const packFieldName = "package";
+  const fieldCount = 3;
+  const fields = [
+    {package: "foo"}, {description: "bar"}, {depends: "pre_foo"}, {depends2: "pre_pre_foo"}
+  ];
+  expect(() => verifyStructure(fields, packFieldName, fieldCount)).toThrow();
+});
+
+test("verify structure: duplicate field names", () => {
+  const packFieldName = "package";
+  const fieldCount = 3;
+  const fields = [{package: "foo"}, {description: "bar"}, {description: "bar2"}];
+  expect(() => verifyStructure(fields, packFieldName, fieldCount)).toThrow();
+});
+
+/* ----------------------------------------------------------------------- */

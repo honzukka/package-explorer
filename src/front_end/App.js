@@ -50,7 +50,7 @@ class App extends React.Component {
     }
 
     this.packages = data;
-    const packageNames = Array.from(data).map(([packageName, packageData]) => packageName);
+    const packageNames = Array.from(data).map(([packageName, ]) => packageName);
     this.setState({ packageNames: packageNames, currentPackageInfo: null });
   }
 
