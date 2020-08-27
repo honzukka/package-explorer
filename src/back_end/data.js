@@ -33,6 +33,10 @@ function processFile(fileContent) {
 	return sortedPackagesWithRevDeps;
 }
 
+/**
+ * Takes a list of lists of package fields and returns a map with package names as keys:
+ * "packageName": { "description": "...", "dependencies": [...], reverseDependencies: [...] }
+ */
 function structureData(parsedFile) {
 	let packages = new Map();
 	parsedFile.forEach(packageFields => {
@@ -43,7 +47,7 @@ function structureData(parsedFile) {
 			reverseDependencies: []
 		})
 	});
-	Array.from(packages).forEach(([packageName, packageData]) => {
+	Array.from(packages).forEach(([ , packageData]) => {
 		packageData.dependencies = packageData.dependencies.map((depGroup) =>
 			depGroup.map((dep) => ({ name: dep, installed: packages.has(dep) }))
 		);
