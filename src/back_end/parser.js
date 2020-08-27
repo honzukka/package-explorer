@@ -1,17 +1,17 @@
-// TODO: on incorrect input...
-//    a) do not break, but do not guarantee the shown result
-//    b) inform the user that the input is badly formatted
-// TODO: make error messages more informative (include faulty input)
-
 function parseFile(fileContent) {
   const relevantFieldNames = ["package", "description", "depends"]
-  const [packFieldName, , depFieldName] = relevantFieldNames; 
-  return (
-    splitIntoParagraphs(fileContent)
-    .map((paragraph) => splitIntoFields(paragraph, relevantFieldNames))
-    .map((fields) => fields.map((field) => parseField(field, depFieldName, packFieldName)))
-    .map((fields) => verifyStructure(fields, packFieldName, relevantFieldNames.length))
-  );
+  const [packFieldName, , depFieldName] = relevantFieldNames;
+  try {
+    return (
+      splitIntoParagraphs(fileContent)
+      .map((paragraph) => splitIntoFields(paragraph, relevantFieldNames))
+      .map((fields) => fields.map((field) => parseField(field, depFieldName, packFieldName)))
+      .map((fields) => verifyStructure(fields, packFieldName, relevantFieldNames.length))
+    );
+  } catch (error) {
+    return { e: error };
+  }
+  
 }
 
 function splitIntoParagraphs(fileContent) {
@@ -43,7 +43,7 @@ function splitIntoFields(paragraph, relevantFieldNames) {
   if (fields.length > 0) {
     return fields;
   } else {
-    throw Error("No fields found in paragraph.");
+    throw Error("No control file fields found.");
   }
 }
 

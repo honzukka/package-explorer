@@ -26,11 +26,19 @@ class App extends React.Component {
 
   async setMockData() {
     let data = await getMockData();
+    if (data.has("#error")) {
+      alert(data.get("#error"));
+      return;
+    } 
     this.setData(data);
   }
 
   async setFileData(file) {
     let data = await getFileData(file);
+    if (data.has("#error")) {
+      alert(data.get("#error"));
+      return;
+    }
     this.setData(data);
   }
 

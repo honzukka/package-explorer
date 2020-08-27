@@ -3,17 +3,13 @@ import $ from 'jquery';
 import mockFile from '../status.real';
 import parseFile from './parser'
 
-// TODO: do not show alert upon error here. App.js takes care of UI stuff
-// TODO: polish error handling when the input file is wrong (check production mode)
-
 async function getMockData() {
 	try {
 		const result = await $.ajax({ url: mockFile });
 		return processFile(result);
 	}
 	catch (error) {
-		alert(`${error.status}: ${error.statusText}`);
-		return new Map();
+		return new Map([["#error", `${error.status}: ${error.statusText}`]]);
 	}
 }
 
@@ -22,8 +18,7 @@ async function getFileData(file) {
 		const reader = new FileReader();
 		reader.onload = (event) => resolve(processFile(event.target.result));
 		reader.onerror = () => {
-			alert("Error reading file data.");
-			resolve(new Map());
+			resolve(new Map([["#error", "Error reading file data."]]));
 		};
 		reader.readAsText(file);
 	});
@@ -31,6 +26,7 @@ async function getFileData(file) {
 
 function processFile(fileContent) {
 	const parsedFile = parseFile(fileContent);
+	if (parsedFile.e) return new Map([["#error", parsedFile.e]]);
 	const packages = structureData(parsedFile);
 	const sortedPackages = sortAlphabetically(packages);
 	const sortedPackagesWithRevDeps = computeReverseDependencies(sortedPackages);
