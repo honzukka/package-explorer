@@ -16,29 +16,36 @@ After processing, all packages in the file are shown as buttons on the main page
 ![screenshot](../assets/screenshot.PNG)
 
 * All dependencies are clickable and take you to information about the dependency package.
+
 * Reverse dependencies are packages that depend on the current package.
+
 * Button which are close together form a *group*. Only one package from a group is required for the current package to work.
+
 * Button `debconf-2.0` in the screenshot above is inactive and that means that `debconf-2.0` is not installed.
 
 ## :construction_worker: Implementation
 
-The purpose of this app is to parse a file and show its content via an HTML interface. The file is small enough to be handled in memory and there is no need to persist any of it on disk as it is always uploaded again in one piece. This is a good reason to **keep processing fully on the client** and restrain from sending any data to the server. It makes for:
-* Faster, more secure user experience
-* Simpler system design
+*Write a small program in a programming language of your choice that exposes some key information about packages in the file via an HTML interface.*
 
-This leads us to the use of the Single-Page Application (SPA) paradigm where we don't even need to send page requests to the server (except for the initial one). This allows for cleaner code separation between different parts of the app.
+* The file is small enough to be handled in memory and there is no need to persist any of it on disk as it is always uploaded again in one piece. This is a good reason to **keep processing fully on the client** and restrain from sending any data to the server. It makes for:
+  * Faster, more secure user experience
+  * Simpler system design
 
-Package Explorer is written in React/Node.js using the [Create React App](https://create-react-app.dev/) module. React and node.js are widely used (at Reaktor, among others :wink: ), so they are well supported. The Create React App is then very easy and fast to use on simple apps such as this one.
+* This leads us to the use of the **Single-Page Application (SPA)** paradigm where we don't even need to send page requests to the server (except for the initial one). This allows for cleaner code separation between different parts of the app.
 
-Bootstrap is added on top to make things simple but pretty.
+* Package Explorer is written in **React/Node.js** using the [Create React App](https://create-react-app.dev/) module. React and node.js are widely used (at Reaktor, among others :wink: ), so they are well supported. The Create React App is then very easy and fast to use on simple apps such as this one.
+
+* **Bootstrap** is added on top to make things simple but pretty.
 
 ### :european_castle: Architecture
 
-The app can be naturally split into two separate modules:
-* **Parser** ([`parser.js`](../master/src/back_end/parser.js))
-* **User Interface** ([`App.js`](../master/src/front_end/App.js))
+*The main design goal of this program is maintainability.*
 
-These are connected by a data-handling module ([`data.js`](../master/src/back_end/data.js)). Its purpose is to load file content either from user upload or from a server-stored mock file, have the parser process it and return it back to the user interface in a suitable data structure (aka The Map):
+* The app can be naturally split into two separate modules:
+  * **Parser** ([`parser.js`](../master/src/back_end/parser.js))
+  * **User Interface** ([`App.js`](../master/src/front_end/App.js))
+
+* These are connected by a data-handling module ([`data.js`](../master/src/back_end/data.js)). Its purpose is to load file content either from user upload or from a server-stored mock file, have the parser process it and return it back to the user interface in a suitable data structure (aka The Map):
 
 ```
 Map(
@@ -60,25 +67,28 @@ Map(
 )
 ```
 
-Package names are unique, so they can serve as good hash map keys (at least when working with single files). Hash maps in general are great for fast element access which is what we need when the user navigates between packages. The ES6 [`Map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) object can also be sorted which is useful for displaying packages in alphabetical order.
+* Package names are unique, so they can serve as good hash map keys (at least when working with single files). Hash maps in general are great for fast element access which is what we need when the user navigates between packages and when computing **reverse dependencies**. The ES6 [`Map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) object can also be sorted which is useful for displaying packages in **alphabetical order**.
 
-Dependencies are stored in nested array because it makes them easier to render in groups which contain alternate dependencies.
+* Dependencies are stored in nested array because it makes them easier to render in groups which contain alternate dependencies.
 
 ### :factory: Parser
 
-Parser is completely separated from the user interface as it only receives a file content string from the data module and returns parsed data to it.
-
-Because it is a critical part of the app, it comes with a set of unit tests ([`parser.test.js`](../master/src/back_end/parser.test.js)). These tests follow the [Syntax of control files](https://www.debian.org/doc/debian-policy/ch-controlfields.html) of the Debian Policy Manual. They were written before the parser itself. They do not test the main public parsing function, but smaller parts of the parser instead. This is to keep the number of tests relatively low and to have each test correspond to one part of the syntax definition. As a result, the parser needs to expose its private functions as well. This is a necessary tradeoff.
+*The section [Syntax of control files](https://www.debian.org/doc/debian-policy/ch-controlfields.html) of the Debian Policy Manual applies to the input data.*
+* A set of **unit tests** ([`parser.test.js`](../master/src/back_end/parser.test.js)) was written before the parser itself to test for each aspect of the syntax definition.
+* The parser has to expose private functions so that they can be tested. This drawback is outweighed by the fact that there can be fewer tests and that each test can directly address a specific aspect of the syntax definition. It also opens the possibility for the parser code to be shaped by the structure of the tests which is a good thing because the tested behaviour is really what we want.
 
 ### :computer: User Interface
 
-*Package explorer needs to show a list of packages with clickable items.*
+*The index page lists installed packages alphabetically with package names as links.*
 * Each package is a button, so that a large list of packages doesn't take up too much space and so that packages are easy to click.
-* This list of buttons is fed from a state variable which contains keys of the [Map](#european_castle-architecture) and is updated whenever a new file is loaded.
+* This list of buttons is fed from `App.state.packageNames` state variable which contains keys of the (alphabetically ordered) [Map](#european_castle-architecture) and is updated whenever a new file is loaded.
 
-*When clicking a package, the user can see information about it.*
-* Information is shown in a [modal](https://getbootstrap.com/docs/4.0/components/modal). This way everything can be kept in a single page and the (potentially very large) list of packages doesn't have to re-render when, say, a collapsible is opened.
-* The modal is fed from a state variable containing current package data. This data is fetched from the [Map](#european_castle-architecture) whenever a button is clicked and the modal shows only when this state variable changes. 
+*When following each link, you arrive at a piece of information about a single package.*
+* Information is shown in a [modal](https://getbootstrap.com/docs/4.0/components/modal). This way everything can be kept in a single page and the (potentially very large) list of packages doesn't have to re-render every time the user click a package (as it would when, say, a collapsible was opened).
+* The modal is fed from `App.state.currentPackageInfo` state variable. This variable is updated from the [Map](#european_castle-architecture) whenever a button is clicked and the modal shows only when the variable changes.
+
+*The dependencies and reverse dependencies should be clickable and the user can navigate the package structure by clicking from package to package.*
+* All the package buttons in the modal need to do is to have a callback which updates `App.state.currentPackageInfo` accordingly.
 
 ### :hammer: Extensions/Improvements
 
