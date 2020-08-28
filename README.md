@@ -2,10 +2,10 @@
 A web-based tool for browsing the contents of `/var/lib/dpkg/status` found on Ubuntu/Debian systems.
 
 Package Explorer is hosted here: https://lit-dusk-04630.herokuapp.com/
-* [How do I use it?](#usage)
+* [How do I use it?](#boy-usage)
 
 It is a solution to a [pre-assignment](https://www.reaktor.com/junior-dev-assignment/) for a job at Reaktor.
-* [Why does the solution looks like this?](#implementation)
+* [Why does the solution looks like this?](#construction_worker-implementation)
 
 ## :boy: Usage
 
@@ -74,11 +74,11 @@ Because it is a critical part of the app, it comes with a set of unit tests ([`p
 
 *Package explorer needs to show a list of packages with clickable items.*
 * Each package is a button, so that a large list of packages doesn't take up too much space and so that packages are easy to click.
-* This list of buttons is fed from a state variable which contains keys of the Map and is updated whenever a new file is loaded.
+* This list of buttons is fed from a state variable which contains keys of the [Map](#european_castle-architecture) and is updated whenever a new file is loaded.
 
 *When clicking a package, the user can see information about it.*
 * Information is shown in a [modal](https://getbootstrap.com/docs/4.0/components/modal). This way everything can be kept in a single page and the (potentially very large) list of packages doesn't have to re-render when, say, a collapsible is opened.
-* The modal is fed from a state variable containing current package data. This data is fetched from the [Map](#architecture) whenever a button is clicked and the modal shows only when this state variable changes. 
+* The modal is fed from a state variable containing current package data. This data is fetched from the [Map](#european_castle-architecture) whenever a button is clicked and the modal shows only when this state variable changes. 
 
 ### :hammer: Extensions/Improvements
 
