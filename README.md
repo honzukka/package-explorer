@@ -13,11 +13,11 @@ You can upload your own `/var/lib/dpkg/status` using a form at the top of the pa
 
 After processing, all packages in the file are shown as buttons on the main page. When you click one, you will see some information about it:
 
-![screenshot](../assets/screenshot.png)
+![screenshot](../assets/screenshot.PNG)
 
 * All dependencies are clickable and take you to information about the dependency package.
 * Reverse dependencies are packages that depend on the current package.
 * Button which are close together form a *group*. Only one package from a group is required for the current package to work.
-* White buttons are inactive and represent packages that are not installed.
+* Button `debconf-2.0` in the screenshot above is inactive and that means that `debconf-2.0` is not installed.
 
 ## Implementation
