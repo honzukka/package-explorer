@@ -1,12 +1,12 @@
-import $ from 'jquery';
-
 import mockFile from '../status.real';
 import parseFile from './parser'
 
 async function getMockData() {
 	try {
-		const result = await $.ajax({ url: mockFile });
-		return processFile(result);
+		const response = await fetch(mockFile);
+		if (!response.ok) throw Error("Error fetching file from the server.");
+		const fileContent = await response.text();
+		return processFile(fileContent);
 	}
 	catch (error) {
 		return new Map([["#error", `${error.status}: ${error.statusText}`]]);
