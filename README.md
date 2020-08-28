@@ -32,11 +32,11 @@ Package Explorer is written in React/Node.js using the [Create React App](https:
 
 ### Architecture
 
-The app an be naturally split into two separate modules:
+The app can be naturally split into two separate modules:
 * **Parser** ([`parser.js`](../master/src/back_end/parser.js))
 * **User Interface** ([`App.js`](../master/src/front_end/App.js))
 
-These are connected by a data-handling module ([`data.js`](../master/src/back_end.js)). Its purpose is to load file content either from user upload or from a server-stored mock file, have the parser process it and return it back to the user interface in a suitable data structure:
+These are connected by a data-handling module ([`data.js`](../master/src/back_end/data.js)). Its purpose is to load file content either from user upload or from a server-stored mock file, have the parser process it and return it back to the user interface in a suitable data structure:
 
 ```
 Map(
