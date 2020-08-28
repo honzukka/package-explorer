@@ -8,6 +8,8 @@ import Modal from 'react-bootstrap/Modal';
 /**
  * This is a Card wrapper which inserts a header
  * and each element of the children prop into a Card.
+ * The header string is expected to contain HTML tags
+ * set from the code, so it's safe to interpret it as HTML.
  */
 function PackageList(props) {
   if (props.children.length === 0) {
@@ -109,6 +111,5 @@ function MissingButton(props) {
 
 export {
   PackageList,
-  //Item,
   PackageInformation
 };
