@@ -21,7 +21,7 @@ After processing, all packages in the file are shown as buttons on the main page
 
 * Buttons which are close together form a *group*. Only one package from a group is required for the current package to work.
 
-* Button `debconf-2.0` in the screenshot above is inactive and that means that `debconf-2.0` is not installed.
+* Button `debconf-2.0` in the screenshot above is inactive and that means that `debconf-2.0` is not installed. That's okay because it's in a group with `debconf` which is installed.
 
 ## :construction_worker: Implementation
 
@@ -31,11 +31,11 @@ After processing, all packages in the file are shown as buttons on the main page
   * Faster, more secure user experience
   * Simpler system design
 
-* This leads us to the use of the **Single-Page Application (SPA)** paradigm where we don't even need to send page requests to the server (except for the initial one). This allows for cleaner code separation between different parts of the app.
+* This leads us to the use of the **Single-Page Application (SPA)** paradigm where we don't even need to send page requests to the server (except for the initial one). This allows for cleaner code separation between different parts of the app. The Progressive Web App (PWA) paradigm could also be used to enable a fully offline mode, but it's better to keep things simple for now.
 
-* Package Explorer is written in **React/node.js** using the [Create React App](https://create-react-app.dev/) module. React and node.js are widely used, so they are well supported. Create React App is then very easy and fast to use on simple apps such as this one.
+* Package Explorer is written in **React/node.js** using the [Create React App](https://create-react-app.dev/) module. React and node.js are widely used, so they are well supported. Create React App is then very easy and fast to use on simple SPA apps such as this one.
 
-* **Bootstrap** is added on top to make things simple but pretty.
+* **Bootstrap** is added on top to make things pretty.
 
 ### :european_castle: Architecture
 
@@ -45,7 +45,7 @@ After processing, all packages in the file are shown as buttons on the main page
   * **Parser** ([`parser.js`](../master/src/back_end/parser.js))
   * **User Interface** ([`App.js`](../master/src/front_end/App.js))
 
-* These are connected by a data-handling module ([`data.js`](../master/src/back_end/data.js)). Its purpose is to load file content either from user upload or from a server-stored mock file, have the parser process it and return it back to the user interface in a suitable data structure (aka The Map):
+* These are connected by a data-handling module ([`data.js`](../master/src/back_end/data.js)). Its purpose is to load file content, have the parser process it and then return it back to the user interface in a suitable data structure (aka The Map):
 
 ```
 Map(
@@ -67,7 +67,7 @@ Map(
 )
 ```
 
-* Package names are unique, so they can serve as good hash map keys (at least when working with single files). Hash maps in general are great for fast element access which is what we need when the user navigates between packages and when computing **reverse dependencies**. The ES6 [`Map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) object can also be sorted which is useful for displaying packages in **alphabetical order**.
+* Hash maps are great for fast element access which is what we need when the user navigates between packages and when computing **reverse dependencies**. The ES6 [`Map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) object can also be sorted which is useful for displaying packages in **alphabetical order**. As for keys, package names can be used because they are unique (at least as long as we're working with single files).
 
 * Dependencies are stored in a nested array because it makes them easier to render in groups which contain alternate dependencies.
 
@@ -77,7 +77,7 @@ Map(
 
 * A set of **unit tests** ([`parser.test.js`](../master/src/back_end/parser.test.js)) was written before the parser itself to test for each aspect of the syntax definition.
 
-* The parser has to expose private functions so that they can be tested. This drawback is outweighed by the fact that there can be fewer tests and that each test can directly address a specific aspect of the syntax definition. It also opens the possibility for the parser code to be shaped by the structure of the tests which is a good thing because the tested behaviour is really what we want.
+* The parser has to expose private functions so that they can be tested. This drawback is outweighed by the fact that there can be fewer tests and that each test can directly address a specific aspect of the syntax definition.
 
 ### :computer: User Interface
 
