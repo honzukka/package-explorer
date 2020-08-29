@@ -3,6 +3,7 @@ A web-based tool for browsing the contents of `/var/lib/dpkg/status` found on Ub
 
 Package Explorer is hosted here: https://lit-dusk-04630.herokuapp.com/
 * [How do I use it?](#boy-usage)
+* [How do I build it locally?](#construction-building)
 
 It is a solution to a [pre-assignment](https://www.reaktor.com/junior-dev-assignment/) for a job at Reaktor.
 * [Why does the solution look like this?](#construction_worker-implementation)
@@ -23,6 +24,16 @@ After processing, all packages in the file are shown as buttons on the main page
 
 * Button `debconf-2.0` in the screenshot above is inactive and that means that `debconf-2.0` is not installed. That's okay because it's in a group with `debconf` which is installed.
 
+## :construction: Building
+
+1. Make sure you have a recent version of [Node.js](https://nodejs.org) installed.
+
+2. Run `npm install` in the root of the repository to install dependencies.
+
+3. Run `npm start` to serve the app locally.
+
+4. Done!
+
 ## :construction_worker: Implementation
 
 ***Write a small program in a programming language of your choice that exposes some key information about packages in the file via an HTML interface.***
@@ -33,7 +44,7 @@ After processing, all packages in the file are shown as buttons on the main page
 
 * This leads us to the use of the **Single-Page Application (SPA)** paradigm where we don't even need to send page requests to the server (except for the initial one). This allows for cleaner code separation between different parts of the app. The Progressive Web App (PWA) paradigm could also be used to enable a fully offline mode, but it's better to keep things simple for now.
 
-* Package Explorer is written in **React/node.js** using the [Create React App](https://create-react-app.dev/) module. React and node.js are widely used, so they are well supported. Create React App is then very easy and fast to use on simple SPA apps such as this one.
+* Package Explorer is written in **React/Node.js** using the [Create React App](https://create-react-app.dev/) module. React and Node.js are widely used, so they are well supported. Create React App is then very easy and fast to use on simple SPA apps such as this one.
 
 * **Bootstrap** is added on top to make things pretty.
 
