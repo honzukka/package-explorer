@@ -97,6 +97,26 @@ Map(
 
 * All the package buttons in the modal need to do is to have a callback which updates `App.state.currentPackageInfo` accordingly.
 
+### :warning: Error Handling
+
+There are two main sources of exceptions in the app:
+
+* File loading
+
+* Parsing
+
+The main principle applied here is to **catch exceptions early** and propagate the error message in a controlled way all the way to [`App.js`](../master/src/front_end/App.js) which decides how to let the user know that an error has occured. [`parser.js`](../master/src/back_end/parser.js) and [`data.js`](../master/src/back_end/data.js) shouldn't touch the user interface in any way.
+
+For example, when the parser encounters an unexpected value, such as a missing package field, the following happens:
+
+* The private method in [`parser.js`](../master/src/back_end/parser.js) that encountered the error throws an exception.
+
+* The public method in [`parser.js`](../master/src/back_end/parser.js) responsible for file parsing catches it and returns the error message instead of parsed data.
+
+* [`data.js`](../master/src/back_end/data.js) sees that no data was parsed and returns a [Map](#european_castle-architecture) containing a single package called "#error" (no package can have this name because such a value would be interpreted as a comment) with the error message as its data.
+
+* [`App.js`](../master/src/front_end/App.js) sees the "#error" package, shows an `alert()` to the user and doesn't update the state.
+
 ### :scroll: Summary
 
 ![schema](../assets/schema.svg)
@@ -136,8 +156,8 @@ The [assignment page](https://www.reaktor.com/junior-dev-assignment/) mentions p
 
 * Persisting notes and tags on a single machine may be done with offline storage such as [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) and thus sending data to the server can still be avoided. Since IndexedDB storage is tied to the browser, it might be reasonable to offer the option to download/upload notes and tags from a file, so that true persistance could be achieved.
 
-* To save current state (regardless of the persistance method used), `data.js` can expose a function `save()` to `App.js` which would be triggered after every tag/note update in the user interface.
+* To save current state (regardless of the persistance method used), [`data.js`](../master/src/back_end/data.js) can expose a function `save()` to [`App.js`](../master/src/front_end/App.js) which would be triggered after every tag/note update in the user interface.
 
-* To load a state, `data.js` would load both the file and the notes/tags, it would throw away notes/tags which do not match any package (perhaps because the package has been uninstalled) and combine this data together before passing it to `App.js`.
+* To load a state, [`data.js`](../master/src/back_end/data.js) would load both the file and the notes/tags, it would throw away notes/tags which do not match any package (perhaps because the package has been uninstalled) and combine this data together before passing it to [`App.js`](../master/src/front_end/App.js).
 
-* To summarize, all that is needed to be done in `App.js` is to trigger the `save()` method after every update. Everything else can be handled in `data.js`.
+* To summarize, all that is needed to be done in [`App.js`](../master/src/front_end/App.js) is to trigger the `save()` method after every update. Everything else can be handled in [`data.js`](../master/src/back_end/data.js).
