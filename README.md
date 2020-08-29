@@ -97,6 +97,18 @@ Map(
 
 * All the package buttons in the modal need to do is to have a callback which updates `App.state.currentPackageInfo` accordingly.
 
+### :scroll: Summary
+
+![schema](../assets/schema.svg)
+
+This highly non-standard diagram aims to summarize the main components of the app and the data flow. The three colorful curves represent how the app reacts to user input:
+
+1. User uploads a file -> File is parsed and a list of packages is shown
+
+2. User clicks on a package in the package list -> Current package info is updated and a package view is shown.
+
+3. User clicks on a dependency in the package view -> Current package info is updated and a package view is shown.
+
 ### :hammer: Extensions/Improvements
 
 TODO
