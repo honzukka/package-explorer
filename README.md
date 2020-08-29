@@ -109,6 +109,25 @@ This highly non-standard diagram aims to summarize the main components of the ap
 
 3. User clicks on a dependency in the package view -> Current package info is updated and a package view is shown.
 
-### :hammer: Extensions/Improvements
+### :hammer: Extensions
 
-TODO
+The [assignment page](https://www.reaktor.com/junior-dev-assignment/) mentions possible extensions to the app. Here is how they could be implemented in this design:
+
+*Add the possibility to add notes to individual packages.*
+
+* The [Map](#european_castle-architecture) would be updated to include a [note] field for each package: `"sudo": { description: "...", dependencies: [...], reverseDependencies: [...], note: "..." }`.
+
+* The modal component would be extended by a text box which would have a callback to update the [Map](#european_castle-architecture).
+
+*Add the possibility to add tags to individual packages and the possibility to filter with tags.*
+
+* A new Map of tags would be added to the state: `Map( "tag1": [ "sudo", "tzdata" ], "tag2": [ "tzdata" ], ... )`.
+  * This data structure would make it very easy to filter by tags and also to add to multiple tags to a single package.
+
+* The modal component would be extended by a subcomponent for adding tags that would have a callback for updating the new Map.
+
+* A new list of tags would be shown above the list of packages on the main page (fed by the new Map). Upon clicking a tag, `App.state.packageNames` would simply be updated by indexing into the new Map. That would automatically filter the package list.
+
+*The notes and tags must be persisted in such a way that they are not lost on reboot etc.*
+
+* TODO
