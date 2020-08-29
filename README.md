@@ -25,7 +25,7 @@ After processing, all packages in the file are shown as buttons on the main page
 
 ## :construction_worker: Implementation
 
-*Write a small program in a programming language of your choice that exposes some key information about packages in the file via an HTML interface.*
+***Write a small program in a programming language of your choice that exposes some key information about packages in the file via an HTML interface.***
 
 * The file is small enough to be handled in memory and there is no need to persist any of it on disk as it is always uploaded again in one piece. This is a good reason to **keep processing fully on the client** and restrain from sending any data to the server. It makes for:
   * Faster, more secure user experience
@@ -39,7 +39,7 @@ After processing, all packages in the file are shown as buttons on the main page
 
 ### :european_castle: Architecture
 
-*The main design goal of this program is maintainability.*
+***The main design goal of this program is maintainability.***
 
 * The app can be naturally split into two separate modules:
   * **Parser** ([`parser.js`](../master/src/back_end/parser.js))
@@ -73,7 +73,7 @@ Map(
 
 ### :factory: Parser
 
-*The section [Syntax of control files](https://www.debian.org/doc/debian-policy/ch-controlfields.html) of the Debian Policy Manual applies to the input data.*
+***The section [Syntax of control files](https://www.debian.org/doc/debian-policy/ch-controlfields.html) of the Debian Policy Manual applies to the input data.***
 
 * A set of **unit tests** ([`parser.test.js`](../master/src/back_end/parser.test.js)) was written before the parser itself to test for each aspect of the syntax definition.
 
@@ -81,19 +81,19 @@ Map(
 
 ### :computer: User Interface
 
-*The index page lists installed packages alphabetically with package names as links.*
+***The index page lists installed packages alphabetically with package names as links.***
 
 * Each package is a button, so that a large list of packages doesn't take up too much space and so that packages are easy to click.
 
 * This list of buttons is fed from `App.state.packageNames` state variable which contains the keys of the (alphabetically ordered) [Map](#european_castle-architecture) and is updated whenever a new file is loaded.
 
-*When following each link, you arrive at a piece of information about a single package.*
+***When following each link, you arrive at a piece of information about a single package.***
 
 * Information is shown in a [modal](https://getbootstrap.com/docs/4.0/components/modal). This way everything can be kept in a single page and the (potentially very large) list of packages doesn't have to re-render every time the user click a package (as it would when, say, a collapsible was opened).
 
 * The modal is fed from `App.state.currentPackageInfo` state variable. This variable is updated from the [Map](#european_castle-architecture) whenever a button is clicked and the modal shows only when the variable changes.
 
-*The dependencies and reverse dependencies should be clickable and the user can navigate the package structure by clicking from package to package.*
+***The dependencies and reverse dependencies should be clickable and the user can navigate the package structure by clicking from package to package.***
 
 * All the package buttons in the modal need to do is to have a callback which updates `App.state.currentPackageInfo` accordingly.
 
@@ -113,13 +113,13 @@ This highly non-standard diagram aims to summarize the main components of the ap
 
 The [assignment page](https://www.reaktor.com/junior-dev-assignment/) mentions possible extensions to the app. Here is how they could be implemented in this design:
 
-*Add the possibility to add notes to individual packages.*
+***Add the possibility to add notes to individual packages.***
 
 * The [Map](#european_castle-architecture) would be updated to include a [note] field for each package: `"sudo": { description: "...", dependencies: [...], reverseDependencies: [...], note: "..." }`.
 
 * The modal component would be extended by a text box which would have a callback to update the [Map](#european_castle-architecture).
 
-*Add the possibility to add tags to individual packages and the possibility to filter with tags.*
+***Add the possibility to add tags to individual packages and the possibility to filter with tags.***
 
 * A new Map of tags would be added to the state: `Map( "tag1": [ "sudo", "tzdata" ], "tag2": [ "tzdata" ], ... )`.
   * This data structure would make it very easy to filter by tags and also to add to multiple tags to a single package.
@@ -128,6 +128,16 @@ The [assignment page](https://www.reaktor.com/junior-dev-assignment/) mentions p
 
 * A new list of tags would be shown above the list of packages on the main page (fed by the new Map). Upon clicking a tag, `App.state.packageNames` would simply be updated by indexing into the new Map. That would automatically filter the package list.
 
-*The notes and tags must be persisted in such a way that they are not lost on reboot etc.*
+***The notes and tags must be persisted in such a way that they are not lost on reboot etc.***
 
-* TODO
+* **Assumption:** The intended use case is to browse only through packages on the current machine.
+  * This needs to be handled carefully because such a feature could evolve into great complexity if we considered that users might want to manage their `/var/lib/dpkg/status` files across multiple machines, share them with friends, like, subscribe...
+  * In the absence of a client to clarify this point, an assumption will have to suffice.
+
+* Persisting notes and tags on a single machine may be done with offline storage such as [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) and thus sending data to the server can still be avoided. Since IndexedDB storage is tied to the browser, it might be reasonable to offer the option to download/upload notes and tags from a file, so that true persistance could be achieved.
+
+* To save current state (regardless of the persistance method used), `data.js` can expose a function `save()` to `App.js` which would be triggered after every tag/note update in the user interface.
+
+* To load a state, `data.js` would load both the file and the notes/tags, it would throw away notes/tags which do not match any package (perhaps because the package has been uninstalled) and combine this data together before passing it to `App.js`.
+
+* To summarize, all that is needed to be done in `App.js` is to trigger the `save()` method after every update. Everything else can be handled in `data.js`.
